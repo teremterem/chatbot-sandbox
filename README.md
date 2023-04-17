@@ -1,2 +1,2 @@
 # chatbot-sandbox
-A sandbox of chatbots that can talk to each other.
+A sandbox for chatbots that can talk to each other.
