@@ -1,8 +1,6 @@
 """Patch openai to log requests to Swipy Platform."""
 from typing import Any
 
-import openai
-
 from swipy_client.swipy_requestor import (
     log_text_completion_request,
     log_text_completion_response,
@@ -11,6 +9,8 @@ from swipy_client.swipy_requestor import (
 
 def patch_openai() -> None:
     """Patch openai to log requests to Swipy Platform."""
+    import openai  # pylint: disable=import-outside-toplevel
+
     chat_completion_acreate_original = openai.ChatCompletion.acreate
 
     async def swipy_chat_completion_acreate(*args, **kwargs) -> dict[str, Any]:
@@ -20,3 +20,5 @@ def patch_openai() -> None:
         return response
 
     openai.ChatCompletion.acreate = swipy_chat_completion_acreate
+
+    # TODO patch the rest of the openai methods
