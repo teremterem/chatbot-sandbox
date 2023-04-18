@@ -1,7 +1,9 @@
 """This module is responsible for sending requests to Swipy Platform."""
+import asyncio
 from typing import Any
 
 import httpx
+import websockets
 
 _SWIPY_PLATFORM_URL = "ws://localhost:8000"
 
@@ -26,13 +28,20 @@ async def log_llm_response(llm_request_id: int, llm_response: dict[str, Any]) ->
     _client.post(f"{_SWIPY_PLATFORM_URL}/log_llm_response/{llm_request_id}/", json=llm_response)
 
 
-# async def _websocket_client() -> None:
-#     # pylint: disable=no-member
-#     # TODO reconnect if connection is lost ? how many times ? exponential backoff ?
-#     async with websockets.connect(f"{_SWIPY_PLATFORM_URL}/fulfillment_websocket/") as websocket:
-#         while True:
-#             # TODO receive fulfillment and schedule a task to fulfill it
-#             pass
+async def fulfillment_handler(message: str) -> None:
+    """Handle fulfillment requests from Swipy Platform."""
+    # TODO replace this with a possibility to register fulfillment handlers
+    print(message)
 
 
-# asyncio.get_event_loop().create_task(_websocket_client())
+async def _ws_fulfillment_client() -> None:
+    """Connect to Swipy Platform and listen for fulfillment requests."""
+    # pylint: disable=no-member
+    # TODO reconnect if connection is lost ? how many times ? exponential backoff ?
+    async with websockets.connect(f"{_SWIPY_PLATFORM_URL}/fulfillment_websocket/") as websocket:
+        while True:
+            message = await websocket.recv()
+            asyncio.create_task(fulfillment_handler(message))
+
+
+asyncio.get_event_loop().create_task(_ws_fulfillment_client())
