@@ -1,24 +1,21 @@
 """Patch openai to log requests to Swipy Platform."""
 from typing import Any
 
-from swipy_client.swipy_requestor import (
-    log_text_completion_request,
-    log_text_completion_response,
-)
+from swipy_client.swipy_requestor import log_llm_request, log_llm_response
 
 
 def patch_openai() -> None:
     """Patch openai to log requests to Swipy Platform."""
     import openai  # pylint: disable=import-outside-toplevel
 
-    chat_completion_acreate_original = openai.ChatCompletion.acreate
+    _chat_completion_acreate_original = openai.ChatCompletion.acreate
 
-    async def swipy_chat_completion_acreate(*args, **kwargs) -> dict[str, Any]:
-        text_completion_id = await log_text_completion_request("openai.ChatCompletion.create", args, kwargs)
-        response = await chat_completion_acreate_original(*args, **kwargs)
-        await log_text_completion_response(text_completion_id, response)
+    async def _chat_completion_acreate(*args, **kwargs) -> dict[str, Any]:
+        llm_request_id = await log_llm_request("openai.ChatCompletion.create", args, kwargs)
+        response = await _chat_completion_acreate_original(*args, **kwargs)
+        await log_llm_response(llm_request_id, response)
         return response
 
-    openai.ChatCompletion.acreate = swipy_chat_completion_acreate
+    openai.ChatCompletion.acreate = _chat_completion_acreate
 
     # TODO patch the rest of the openai methods

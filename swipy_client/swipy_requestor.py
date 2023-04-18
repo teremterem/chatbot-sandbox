@@ -1,16 +1,14 @@
 """This module is responsible for sending requests to Swipy Platform."""
-import asyncio
-import json
 from typing import Any
 
-import websockets
+import httpx
 
-_SWIPY_WEBSOCKET_URI = "ws://localhost:8000/swipy_bot_websocket/"
-_SEND_QUEUE = asyncio.Queue()
-_RECV_QUEUE = asyncio.Queue()
+_SWIPY_PLATFORM_URL = "ws://localhost:8000"
+
+_client = httpx.Client()
 
 
-async def log_text_completion_request(caller_name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> int:
+async def log_llm_request(caller_name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> int:
     """Log a text completion request to Swipy Platform."""
     data = {
         "_swipy_caller_name": caller_name,
@@ -19,37 +17,26 @@ async def log_text_completion_request(caller_name: str, args: tuple[Any, ...], k
     if args:
         data["_swipy_args"] = args
 
-    response = await _call_websocket(data)
-    return response["text_completion_id"]
+    response = _client.post(f"{_SWIPY_PLATFORM_URL}/log_llm_request/", json=data)
+    return response.json()["llm_request_id"]
 
 
-async def log_text_completion_response(text_completion_id: int, completion_response: dict[str, Any]) -> None:
+async def log_llm_response(llm_request_id: int, completion_response: dict[str, Any]) -> None:
     """Log a text completion response to Swipy Platform."""
     data = {
-        "text_completion_id": text_completion_id,
+        "llm_request_id": llm_request_id,
         "response": completion_response,
     }
-    await _call_websocket(data)
+    _client.post(f"{_SWIPY_PLATFORM_URL}/log_llm_response/{llm_request_id}/", json=data)
 
 
-async def _call_websocket(data: Any) -> Any:
-    # send data
-    data = json.dumps(data)
-    await _SEND_QUEUE.put(data)
-    # receive response
-    response = await _RECV_QUEUE.get()
-    return json.loads(response)
+# async def _websocket_client() -> None:
+#     # pylint: disable=no-member
+#     # TODO reconnect if connection is lost ? how many times ? exponential backoff ?
+#     async with websockets.connect(f"{_SWIPY_PLATFORM_URL}/fulfillment_websocket/") as websocket:
+#         while True:
+#             # TODO receive fulfillment and schedule a task to fulfill it
+#             pass
 
 
-async def _websocket_client() -> None:
-    async with websockets.connect(_SWIPY_WEBSOCKET_URI) as websocket:  # pylint: disable=no-member
-        while True:
-            # send data
-            data_to_send = await _SEND_QUEUE.get()
-            await websocket.send(data_to_send)
-            # receive response
-            data = await websocket.recv()
-            await _RECV_QUEUE.put(data)
-
-
-asyncio.get_event_loop().create_task(_websocket_client())
+# asyncio.get_event_loop().create_task(_websocket_client())
