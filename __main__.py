@@ -11,4 +11,4 @@ patch_openai()
 if __name__ == "__main__":
     from chatbots.completion_logging_experiment import main
 
-    asyncio.get_event_loop().run_until_complete(main())
+    asyncio.run(main())
