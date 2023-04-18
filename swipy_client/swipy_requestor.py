@@ -9,7 +9,7 @@ _client = httpx.Client()
 
 
 async def log_llm_request(caller_name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> int:
-    """Log a text completion request to Swipy Platform."""
+    """Log a LLM request to Swipy Platform."""
     data = {
         "_swipy_caller_name": caller_name,
         **kwargs,
@@ -21,13 +21,9 @@ async def log_llm_request(caller_name: str, args: tuple[Any, ...], kwargs: dict[
     return response.json()["llm_request_id"]
 
 
-async def log_llm_response(llm_request_id: int, completion_response: dict[str, Any]) -> None:
-    """Log a text completion response to Swipy Platform."""
-    data = {
-        "llm_request_id": llm_request_id,
-        "response": completion_response,
-    }
-    _client.post(f"{_SWIPY_PLATFORM_URL}/log_llm_response/{llm_request_id}/", json=data)
+async def log_llm_response(llm_request_id: int, llm_response: dict[str, Any]) -> None:
+    """Log a LLM response to Swipy Platform."""
+    _client.post(f"{_SWIPY_PLATFORM_URL}/log_llm_response/{llm_request_id}/", json=llm_response)
 
 
 # async def _websocket_client() -> None:
