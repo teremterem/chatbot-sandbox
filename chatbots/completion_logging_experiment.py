@@ -1,5 +1,4 @@
 """Example of using the langchain library to generate a response to a prompt and log it to Swipy Platform."""
-
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage
 
