@@ -1,6 +1,7 @@
 """This module is responsible for sending requests to Swipy Platform."""
 import asyncio
 import json
+import logging
 from typing import Any
 
 import httpx
@@ -11,6 +12,7 @@ _SWIPY_PLATFORM_HTTP_URL = f"http://{_SWIPY_PLATFORM_URL_NO_PROTOCOL}"
 _SWIPY_PLATFORM_WS_URL = f"ws://{_SWIPY_PLATFORM_URL_NO_PROTOCOL}"
 
 _client = httpx.Client()
+logger = logging.getLogger(__name__)
 
 
 async def log_llm_request(caller_name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> int:
@@ -31,7 +33,7 @@ async def log_llm_response(llm_request_id: int, llm_response: dict[str, Any]) ->
     _client.post(f"{_SWIPY_PLATFORM_HTTP_URL}/log_llm_response/{llm_request_id}/", json=llm_response)
 
 
-async def send_message(fulfillment_id: int, data: dict[str, Any]) -> None:
+async def send_message(fulfillment_id: int, **data) -> None:
     """
     Send a message from a chatbot on Swipy Platform. Which chatbot, which chat, etc. is determined by the
     fulfillment_id.
@@ -41,11 +43,19 @@ async def send_message(fulfillment_id: int, data: dict[str, Any]) -> None:
 
 async def run_fulfillment_client(fulfillment_handler: callable) -> None:
     """Connect to Swipy Platform and listen for fulfillment requests."""
-    # pylint: disable=no-member
+    # pylint: disable=no-member,broad-exception-caught
     # TODO reconnect if connection is lost ? how many times ? exponential backoff ?
     async with websockets.connect(f"{_SWIPY_PLATFORM_WS_URL}/fulfillment_websocket/") as websocket:
         while True:
             data_str = await websocket.recv()
-            data = json.loads(data_str)
-            fulfillment_id = data.pop("fulfillment_id")
-            asyncio.create_task(fulfillment_handler(fulfillment_id, data))
+            try:
+                data = json.loads(data_str)
+                fulfillment_id = data.pop("fulfillment_id")
+                asyncio.create_task(fulfillment_handler(fulfillment_id, data))
+            except Exception as exc:
+                logger.exception(exc)
+                try:
+                    await send_message(fulfillment_id, text=f"⚠️ Oops, something went wrong ⚠️\n\n{exc}")
+                except Exception as exc2:
+                    # TODO do we even need to log this ? it may confuse what was the original error
+                    logger.warning("FAILED TO REPORT ERROR TO THE USER", exc_info=exc2)
