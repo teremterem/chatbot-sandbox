@@ -12,8 +12,13 @@ llm_chat = ChatOpenAI(temperature=1)
 async def fulfillment_handler(fulfillment_id: int, data: dict[str, Any]) -> None:
     """Handle fulfillment requests from Swipy Platform."""
     message = data["message_text"]
+    print(message)
+
     llm_result = await llm_chat.agenerate([[HumanMessage(content=message)]])
-    await send_message(fulfillment_id, text=llm_result.generations[0][0].text)
+    response = llm_result.generations[0][0].text
+
+    print(response)
+    await send_message(fulfillment_id, text=response)
 
 
 async def main() -> None:
