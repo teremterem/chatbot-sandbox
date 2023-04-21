@@ -2,19 +2,24 @@
 from typing import Any
 
 from langchain.chat_models import ChatOpenAI
-from langchain.schema import HumanMessage
+from langchain.schema import ChatMessage
 
 from swipy_client import run_fulfillment_client, send_message
 
-llm_chat = ChatOpenAI(temperature=1)
+llm_chat = ChatOpenAI()
 
 
 async def fulfillment_handler(fulfillment_id: int, data: dict[str, Any]) -> None:
     """Handle fulfillment requests from Swipy Platform."""
-    message = data["message_text"]
-    print(message)
+    # TODO attach completion to fulfillment somehow
+    # TODO pass user_uuid to openai ?
+    # TODO make /start invisible to bot
+    message = data["message"]
+    print(message["content"])
 
-    llm_result = await llm_chat.agenerate([[HumanMessage(content=message)]])
+    llm_context = [ChatMessage(role=msg["role"], content=msg["content"]) for msg in data["message_history"]]
+    llm_context.append(ChatMessage(role=message["role"], content=message["content"]))
+    llm_result = await llm_chat.agenerate([llm_context])
     response = llm_result.generations[0][0].text
 
     print(response)
