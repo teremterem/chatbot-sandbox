@@ -13,7 +13,6 @@ async def fulfillment_handler(fulfillment_id: int, data: dict[str, Any]) -> None
     """Handle fulfillment requests from Swipy Platform."""
     # TODO attach completion to fulfillment somehow
     # TODO pass user_uuid to openai ?
-    # TODO make /start invisible to bot
     message = data["message"]
     print(message["content"])
 
