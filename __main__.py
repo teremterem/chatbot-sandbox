@@ -1,14 +1,16 @@
 """Entry point for the chatbot sandbox."""
+# pylint: disable=wrong-import-position
 import asyncio
 
 from dotenv import load_dotenv
 
+load_dotenv()
+
 from swipy_client import patch_openai
 
-load_dotenv()
 patch_openai()
 
-if __name__ == "__main__":
-    from chatbots.completion_logging_experiment import main
+from chatbots.completion_logging_experiment import main
 
+if __name__ == "__main__":
     asyncio.run(main())
