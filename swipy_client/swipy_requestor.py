@@ -8,11 +8,13 @@ from typing import Any
 
 import httpx
 import websockets
+from httpx import Response
 
 swipy_platform_http_uri = os.getenv("SWIPY_PLATFORM_HTTP_URI", "http://localhost:8000")
 swipy_platform_ws_uri = os.getenv("SWIPY_PLATFORM_WS_URI", "ws://localhost:8000")
+swipy_api_key = os.getenv("SWIPY_API_KEY")
 
-_client = httpx.Client()
+_client = httpx.AsyncClient()
 logger = logging.getLogger(__name__)
 
 _fulfillment_id_var: ContextVar[int | None] = ContextVar("fulfillment_id", default=None)
@@ -31,13 +33,13 @@ async def log_llm_request(caller_name: str, args: tuple[Any, ...], kwargs: dict[
     if fulfillment_id is not None:
         data["_swipy_fulfillment_id"] = fulfillment_id
 
-    response = _client.post(f"{swipy_platform_http_uri}/log_llm_request/", json=data)
+    response = await _post("/log_llm_request/", data)
     return response.json()["llm_request_id"]
 
 
 async def log_llm_response(llm_request_id: int, llm_response: dict[str, Any]) -> None:
     """Log a LLM response to Swipy Platform."""
-    _client.post(f"{swipy_platform_http_uri}/log_llm_response/{llm_request_id}/", json=llm_response)
+    await _post(f"/log_llm_response/{llm_request_id}/", llm_response)
 
 
 async def send_message(fulfillment_id: int, **data) -> None:
@@ -45,7 +47,14 @@ async def send_message(fulfillment_id: int, **data) -> None:
     Send a message from a chatbot on Swipy Platform. Which chatbot, which chat, etc. is determined by the
     fulfillment_id.
     """
-    _client.post(f"{swipy_platform_http_uri}/send_message/{fulfillment_id}/", json=data)
+    await _post(f"/send_message/{fulfillment_id}/", data)
+
+
+async def _post(path: str, data: dict[str, Any]) -> Response:
+    """Send a POST request to Swipy Platform."""
+    return await _client.post(
+        f"{swipy_platform_http_uri}{path}", json=data, headers={"X-Swipy-Api-Secret-Token": swipy_api_key}
+    )
 
 
 async def _fulfillment_handler_wrapper(
