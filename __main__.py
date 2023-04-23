@@ -10,7 +10,7 @@ from swipy_client import patch_openai
 
 patch_openai()
 
-from chatbots.completion_logging_experiment import main
+from chatbots.pdf_bot import main
 
 if __name__ == "__main__":
     asyncio.run(main())
