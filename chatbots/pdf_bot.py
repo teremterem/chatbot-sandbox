@@ -29,7 +29,7 @@ async def pdf_bot_handler(bot: SwipyBot, data: dict[str, Any]) -> None:
     llm_chat = ChatOpenAI(user=data["user_uuid"])
     chain = load_qa_chain(llm_chat, chain_type="stuff")
     docs = docsearch.similarity_search(query)
-    response = chain.run(input_documents=docs, question=query)
+    response = await chain.arun(input_documents=docs, question=query)
 
     print("BOT:", response)
     print()
