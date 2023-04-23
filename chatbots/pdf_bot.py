@@ -6,10 +6,10 @@ import os
 from typing import Any
 
 from PyPDF2 import PdfReader
-from langchain import FAISS, OpenAI
+from langchain import FAISS
 from langchain.chains.question_answering import load_qa_chain
+from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
-from langchain.schema import ChatMessage
 from langchain.text_splitter import CharacterTextSplitter
 
 from swipy_client import SwipyBot
@@ -20,15 +20,16 @@ ANTI_SWIPY_BOT_TOKEN = os.environ["ANTI_SWIPY_BOT_TOKEN"]
 async def pdf_bot_handler(bot: SwipyBot, data: dict[str, Any]) -> None:
     """Handle fulfillment requests from Swipy Platform."""
     message = data["message"]
-    print("USER:", message["content"])
+    query = message["content"]
+    print("USER:", query)
 
-    llm_context = [ChatMessage(role=msg["role"], content=msg["content"]) for msg in data["message_history"]]
-    llm_context.append(ChatMessage(role=message["role"], content=message["content"]))
+    # llm_context = [ChatMessage(role=msg["role"], content=msg["content"]) for msg in data["message_history"]]
+    # llm_context.append(ChatMessage(role=message["role"], content=query))
 
-    llm_chat = OpenAI(user=data["user_uuid"])
+    llm_chat = ChatOpenAI(user=data["user_uuid"])
     chain = load_qa_chain(llm_chat, chain_type="stuff")
-    docs = docsearch.similarity_search(message)
-    response = chain.run(input_documents=docs, question=message)
+    docs = docsearch.similarity_search(query)
+    response = chain.run(input_documents=docs, question=query)
 
     print("BOT:", response)
     await bot.send_message(text=response)
