@@ -7,7 +7,7 @@ from contextvars import ContextVar
 from typing import Any, Callable, Awaitable
 
 import httpx
-import websockets
+from websockets.client import connect
 from httpx import Response
 
 swipy_platform_http_uri = os.getenv("SWIPY_PLATFORM_HTTP_URI", "http://localhost:8000")
@@ -69,7 +69,10 @@ class SwipyBot:
         """Connect to Swipy Platform and listen for fulfillment requests."""
         # pylint: disable=no-member
         # TODO reconnect if connection is lost ? how many times ? exponential backoff ?
-        async with websockets.connect(f"{swipy_platform_ws_uri}/fulfillment_websocket/") as websocket:
+        async with connect(
+            f"{swipy_platform_ws_uri}/fulfillment_websocket/",
+            extra_headers={"X-Swipy-Bot-Token": self.swipy_bot_token},
+        ) as websocket:
             while True:
                 data_str = await websocket.recv()
                 data = json.loads(data_str)
