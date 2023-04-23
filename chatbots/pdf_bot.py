@@ -32,6 +32,7 @@ async def pdf_bot_handler(bot: SwipyBot, data: dict[str, Any]) -> None:
     response = chain.run(input_documents=docs, question=query)
 
     print("BOT:", response)
+    print()
     await bot.send_message(text=response)
 
 
