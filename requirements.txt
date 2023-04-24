@@ -27,7 +27,9 @@ charset-normalizer==3.1.0
     #   requests
 dataclasses-json==0.5.7
     # via langchain
-faiss-cpu==1.7.3
+dnspython==2.3.0
+    # via pinecone-client
+faiss-cpu==1.7.4
     # via -r requirements.in
 frozenlist==1.3.3
     # via
@@ -45,8 +47,10 @@ idna==3.4
     #   httpx
     #   requests
     #   yarl
-langchain==0.0.147
+langchain==0.0.148
     # via -r requirements.in
+loguru==0.7.0
+    # via pinecone-client
 marshmallow==3.19.0
     # via
     #   dataclasses-json
@@ -65,29 +69,39 @@ numpy==1.24.3
     # via
     #   langchain
     #   numexpr
+    #   pinecone-client
 openai==0.27.4
     # via -r requirements.in
 openapi-schema-pydantic==1.2.4
     # via langchain
 packaging==23.1
     # via marshmallow
+pinecone-client==2.2.1
+    # via -r requirements.in
 pydantic==1.10.7
     # via
     #   langchain
     #   openapi-schema-pydantic
 pypdf2==3.0.1
     # via -r requirements.in
+python-dateutil==2.8.2
+    # via pinecone-client
 python-dotenv==1.0.0
     # via -r requirements.in
 pyyaml==6.0
-    # via langchain
+    # via
+    #   langchain
+    #   pinecone-client
 regex==2023.3.23
     # via tiktoken
 requests==2.28.2
     # via
     #   langchain
     #   openai
+    #   pinecone-client
     #   tiktoken
+six==1.16.0
+    # via python-dateutil
 sniffio==1.3.0
     # via
     #   anyio
@@ -103,14 +117,18 @@ tqdm==4.65.0
     # via
     #   langchain
     #   openai
+    #   pinecone-client
 typing-extensions==4.5.0
     # via
+    #   pinecone-client
     #   pydantic
     #   typing-inspect
 typing-inspect==0.8.0
     # via dataclasses-json
 urllib3==1.26.15
-    # via requests
+    # via
+    #   pinecone-client
+    #   requests
 websockets==11.0.2
     # via -r requirements.in
 yarl==1.9.1
