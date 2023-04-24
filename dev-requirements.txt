@@ -232,7 +232,9 @@ pandocfilters==1.5.0
 parso==0.8.3
     # via jedi
 pathspec==0.11.1
-    # via black
+    # via
+    #   -c requirements.txt
+    #   black
 pexpect==4.8.0
     # via ipython
 pickleshare==0.7.5

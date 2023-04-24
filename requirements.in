@@ -2,8 +2,9 @@ faiss-cpu==1.7.4
 httpx==0.24.0
 langchain==0.0.148
 openai==0.27.4
+pathspec==0.11.1
 pinecone-client==2.2.1
-PyPDF2==3.0.1  # trying out PDF bot
+PyPDF2==3.0.1
 python-dotenv==1.0.0
-tiktoken==0.3.3  # trying out PDF bot
+tiktoken==0.3.3
 websockets==11.0.2
