@@ -28,7 +28,7 @@ class PdfBot:
 
     async def _fulfillment_handler(self, bot: SwipyBot, data: dict[str, Any]) -> None:
         """Handle fulfillment requests from Swipy Platform."""
-        print("USER:", data["message"])
+        print("USER:", data["message"]["content"])
         print()
 
         query = self._build_query(data)
