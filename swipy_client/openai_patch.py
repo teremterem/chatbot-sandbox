@@ -44,7 +44,7 @@ async def _async_patch(caller_name: str, original_function: callable, *args, **k
 
 
 def _sync_patch(caller_name: str, original_function: callable, *args, **kwargs) -> Any:
-    llm_request_id = asyncio.run(log_llm_request(caller_name, args, kwargs))
+    llm_request_id = asyncio.get_event_loop().run_until_complete(log_llm_request(caller_name, args, kwargs))
     response = original_function(*args, **kwargs)
-    asyncio.run(log_llm_response(llm_request_id, response))
+    asyncio.get_event_loop().run_until_complete(log_llm_response(llm_request_id, response))
     return response

@@ -12,7 +12,7 @@ from websockets.client import connect
 
 swipy_platform_http_uri = os.getenv("SWIPY_PLATFORM_HTTP_URI", "http://localhost:8000")
 swipy_platform_ws_uri = os.getenv("SWIPY_PLATFORM_WS_URI", "ws://localhost:8000")
-default_swipy_bot_token = os.getenv("DEFAULT_SWIPY_BOT_TOKEN")
+default_swipy_bot_token = os.getenv("DEFAULT_SWIPY_BOT_TOKEN")  # TODO there should be no default bot
 
 _client = httpx.AsyncClient()
 logger = logging.getLogger(__name__)
