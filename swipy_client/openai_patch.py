@@ -1,4 +1,6 @@
 """Patch openai to log requests to Swipy Platform."""
+import asyncio
+from functools import partial
 from typing import Any
 
 from swipy_client.swipy_requestor import log_llm_request, log_llm_response
@@ -6,21 +8,43 @@ from swipy_client.swipy_requestor import log_llm_request, log_llm_response
 
 def patch_openai() -> None:
     """Patch openai to log requests to Swipy Platform."""
+
+    classes = ("ChatCompletion", "Completion", "Embedding")
+    functions = (
+        ("acreate", True),
+        ("create", False),
+    )
+    for class_name in classes:
+        for function_name, is_async in functions:
+            _patch_openai_function(class_name, function_name, is_async)
+
+
+def _patch_openai_function(class_name: str, function_name: str, is_async: bool) -> callable:
     import openai  # pylint: disable=import-outside-toplevel
 
-    _chat_completion_acreate_original = openai.ChatCompletion.acreate
+    patch_function = _async_patch if is_async else _sync_patch
+    openai_class = getattr(openai, class_name)
 
-    async def _chat_completion_acreate(*args, **kwargs) -> dict[str, Any]:
-        # TODO do asyncio.create_task() instead of await ?
-        llm_request_id = await log_llm_request("openai.ChatCompletion.create", args, kwargs)
+    setattr(
+        openai_class,
+        function_name,
+        partial(
+            patch_function,
+            f"openai.{class_name}.{function_name}",
+            getattr(openai_class, function_name),
+        ),
+    )
 
-        response = await _chat_completion_acreate_original(*args, **kwargs)
 
-        # TODO do asyncio.create_task() instead of await ?
-        await log_llm_response(llm_request_id, response)
+async def _async_patch(caller_name: str, original_function: callable, *args, **kwargs) -> Any:
+    llm_request_id_task = asyncio.create_task(log_llm_request(caller_name, args, kwargs))
+    response = await original_function(*args, **kwargs)
+    asyncio.create_task(log_llm_response(llm_request_id_task, response))
+    return response
 
-        return response
 
-    openai.ChatCompletion.acreate = _chat_completion_acreate
-
-    # TODO patch the rest of the openai methods
+def _sync_patch(caller_name: str, original_function: callable, *args, **kwargs) -> Any:
+    llm_request_id = asyncio.run(log_llm_request(caller_name, args, kwargs))
+    response = original_function(*args, **kwargs)
+    asyncio.run(log_llm_response(llm_request_id, response))
+    return response

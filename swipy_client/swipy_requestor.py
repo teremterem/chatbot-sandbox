@@ -7,8 +7,8 @@ from contextvars import ContextVar
 from typing import Any, Callable, Awaitable
 
 import httpx
-from websockets.client import connect
 from httpx import Response
+from websockets.client import connect
 
 swipy_platform_http_uri = os.getenv("SWIPY_PLATFORM_HTTP_URI", "http://localhost:8000")
 swipy_platform_ws_uri = os.getenv("SWIPY_PLATFORM_WS_URI", "ws://localhost:8000")
@@ -22,41 +22,6 @@ _swipy_bot_var: ContextVar["SwipyBot | None"] = ContextVar("swipy_bot", default=
 _fulfillment_id_var: ContextVar[int | None] = ContextVar("fulfillment_id", default=None)
 
 FulfillmentHandler = Callable[["SwipyBot", dict[str, Any]], Awaitable[None]]
-
-
-async def log_llm_request(caller_name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> int:
-    """Log a LLM request to Swipy Platform."""
-    data = {
-        "_swipy_caller_name": caller_name,
-        **kwargs,
-    }
-    if args:
-        data["_swipy_args"] = args
-
-    bot = _swipy_bot_var.get()
-    swipy_bot_token = bot.swipy_bot_token if bot else default_swipy_bot_token
-
-    fulfillment_id = _fulfillment_id_var.get()
-    if fulfillment_id is not None:
-        data["_swipy_fulfillment_id"] = fulfillment_id
-
-    response = await _post("/log_llm_request/", data, swipy_bot_token)
-    return response.json()["llm_request_id"]
-
-
-async def log_llm_response(llm_request_id: int, llm_response: dict[str, Any]) -> None:
-    """Log a LLM response to Swipy Platform."""
-    bot = _swipy_bot_var.get()
-    swipy_bot_token = bot.swipy_bot_token if bot else default_swipy_bot_token
-
-    await _post(f"/log_llm_response/{llm_request_id}/", llm_response, swipy_bot_token)
-
-
-async def _post(path: str, data: dict[str, Any], swipy_bot_token: str) -> Response:
-    """Send a POST request to Swipy Platform."""
-    return await _client.post(
-        f"{swipy_platform_http_uri}{path}", json=data, headers={"X-Swipy-Bot-Token": swipy_bot_token}
-    )
 
 
 class SwipyBot:
@@ -103,3 +68,45 @@ class SwipyBot:
             except Exception as exc2:
                 # TODO do we even need to log this ? it may confuse what was the original error
                 logger.warning("FAILED TO REPORT ERROR TO THE USER", exc_info=exc2)
+
+
+async def log_llm_request(caller_name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> int:
+    """Log a LLM request to Swipy Platform."""
+    data = {
+        "_swipy_caller_name": caller_name,
+        **kwargs,
+    }
+    if args:
+        data["_swipy_args"] = args
+
+    fulfillment_id = _fulfillment_id_var.get()
+    if fulfillment_id is not None:
+        data["_swipy_fulfillment_id"] = fulfillment_id
+
+    response = await _post("/log_llm_request/", data)
+    return response.json()["llm_request_id"]
+
+
+async def log_llm_response(llm_request_id: int | Awaitable[int], llm_response: dict[str, Any]) -> None:
+    """Log a LLM response to Swipy Platform."""
+    if isinstance(llm_request_id, Awaitable):
+        llm_request_id = await llm_request_id
+
+    await _post(f"/log_llm_response/{llm_request_id}/", llm_response)
+
+
+async def _post(path: str, data: dict[str, Any], swipy_bot_token: str = None) -> Response:
+    """Send a POST request to Swipy Platform."""
+    if not swipy_bot_token:
+        bot = _swipy_bot_var.get()
+        swipy_bot_token = bot.swipy_bot_token if bot else default_swipy_bot_token
+
+        if not swipy_bot_token:
+            raise ValueError(
+                "Request is being made outside of a fulfillment handler context "
+                "but DEFAULT_SWIPY_BOT_TOKEN env var is not set"
+            )
+
+    return await _client.post(
+        f"{swipy_platform_http_uri}{path}", json=data, headers={"X-Swipy-Bot-Token": swipy_bot_token}
+    )
