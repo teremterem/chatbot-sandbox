@@ -41,11 +41,11 @@ def ingest_pdf(filename: str) -> FAISS:
     reader = PdfReader(filename)
     raw_text_parts = [page.extract_text() for page in reader.pages]
     raw_text = "\n".join(raw_text_parts)
-    print()
-    print()
-    print(raw_text)
-    print()
-    print()
+    # print()
+    # print()
+    # print(raw_text)
+    # print()
+    # print()
 
     text_splitter = CharacterTextSplitter(
         separator="\n",
@@ -54,6 +54,11 @@ def ingest_pdf(filename: str) -> FAISS:
         length_function=len,
     )
     texts = text_splitter.split_text(raw_text)
+    for text in texts:
+        print(len(text))
+        print(text)
+        print()
+        print()
 
     embeddings = OpenAIEmbeddings()
     return FAISS.from_texts(texts, embeddings)
