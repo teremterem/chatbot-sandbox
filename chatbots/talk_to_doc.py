@@ -77,7 +77,7 @@ def pdf_to_faiss(pdf_filename: str) -> FAISS:
     texts = text_splitter.split_text(raw_text)
     for text in texts:
         print(text)
-        print("LENGTH:", len(text), "CHARS")
+        print("    LENGTH:", len(text), "CHARS")
         print()
 
     embeddings = OpenAIEmbeddings()

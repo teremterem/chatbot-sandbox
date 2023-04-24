@@ -23,12 +23,12 @@ async def main() -> None:
                 pdf_to_faiss("2023_GPT4All_Technical_Report.pdf"),
             ).run_fulfillment_client()
         ),
-        asyncio.create_task(
-            TalkToDocBot(
-                os.environ["INSTRUCT_GPT_PDF_BOT_TOKEN"],
-                pdf_to_faiss("2203.02155.pdf"),
-            ).run_fulfillment_client()
-        ),
+        # asyncio.create_task(
+        #     TalkToDocBot(
+        #         os.environ["INSTRUCT_GPT_PDF_BOT_TOKEN"],
+        #         pdf_to_faiss("2203.02155.pdf"),
+        #     ).run_fulfillment_client()
+        # ),
     )
 
 
