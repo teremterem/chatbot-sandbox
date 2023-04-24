@@ -28,6 +28,7 @@ class TalkToDocBot:
 
     async def run_fulfillment_client(self):
         """Connect to Swipy Platform and listen for fulfillment requests."""
+        print("STARTING BOT...")
         await SwipyBot(self.swipy_bot_token).run_fulfillment_client(self._fulfillment_handler)
 
     async def _fulfillment_handler(self, bot: SwipyBot, data: dict[str, Any]) -> None:
