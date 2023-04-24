@@ -2,6 +2,7 @@
 This chatbot is based on materials from the following video by Prompt Engineering YouTube channel
 (checkout video description for more links): https://www.youtube.com/watch?v=TLf90ipMzfE
 """
+import itertools
 from typing import Any
 
 from PyPDF2 import PdfReader
@@ -27,21 +28,36 @@ class PdfBot:
 
     async def _fulfillment_handler(self, bot: SwipyBot, data: dict[str, Any]) -> None:
         """Handle fulfillment requests from Swipy Platform."""
-        message = data["message"]
-        query = message["content"]
-        print("USER:", query)
+        print("USER:", data["message"])
 
-        # llm_context = [ChatMessage(role=msg["role"], content=msg["content"]) for msg in data["message_history"]]
-        # llm_context.append(ChatMessage(role=message["role"], content=query))
+        query = self._build_query(data)
 
         llm_chat = ChatOpenAI(user=data["user_uuid"])
         chain = load_qa_chain(llm_chat, chain_type="stuff")
         docs = self.docsearch.similarity_search(query)
-        response = await chain.arun(input_documents=docs, question=query)
+        response = await chain.arun(
+            input_documents=docs,
+            question=query,
+            stop=[
+                "\n\nUSER:",
+                "\n\nASSISTANT:",
+            ],
+        )
 
-        print("BOT:", response)
+        print("ASSISTANT:", response)
         print()
         await bot.send_message(text=response)
+
+    @staticmethod
+    def _build_query(data: dict[str, Any]) -> str:
+        query_parts = []
+        for msg in itertools.chain(data["message_history"], (data["message"],)):
+            query_parts.append(msg["role"].upper())
+            query_parts.append(": ")
+            query_parts.append(msg["content"])
+            query_parts.append("\n\n")
+        query_parts.append("ASSISTANT:")
+        return "".join(query_parts)
 
     @staticmethod
     def _ingest_pdf(pdf_filename: str) -> FAISS:

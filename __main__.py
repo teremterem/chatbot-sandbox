@@ -16,10 +16,13 @@ from chatbots.pdf_bot import PdfBot
 
 async def main() -> None:
     """Run the chatbot sandbox."""
-    pdf_bot = asyncio.create_task(
-        PdfBot(os.environ["PDF_BOT_TOKEN"], "2023_GPT4All_Technical_Report.pdf").run_fulfillment_client()
+    gpt4all_pdf_bot = asyncio.create_task(
+        PdfBot(os.environ["GPT4ALL_PDF_BOT_TOKEN"], "2023_GPT4All_Technical_Report.pdf").run_fulfillment_client()
     )
-    await asyncio.gather(pdf_bot)
+    instruct_gpt_pdf_bot = asyncio.create_task(
+        PdfBot(os.environ["INSTRUCT_GPT_PDF_BOT_TOKEN"], "2203.02155.pdf").run_fulfillment_client()
+    )
+    await asyncio.gather(gpt4all_pdf_bot, instruct_gpt_pdf_bot)
 
 
 if __name__ == "__main__":
