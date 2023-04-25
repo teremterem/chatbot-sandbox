@@ -14,6 +14,7 @@ from langchain import FAISS
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
+from langchain.embeddings.base import Embeddings
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import VectorStore
 from pathspec import pathspec
@@ -74,6 +75,24 @@ class TalkToDocBot:
         query_parts.append("ASSISTANT:")
         return "".join(query_parts)
 
+    @staticmethod
+    def build_embeddings() -> Embeddings:
+        """Build LangChain's Embeddings object."""
+        return OpenAIEmbeddings(allowed_special="all")
+
+
+class FaissBot(TalkToDocBot):
+    """A chatbot that answers questions using a FAISS index that was saved locally."""
+
+    def __init__(self, swipy_bot_token: str, faiss_folder_path: str | Path) -> None:
+        embeddings = self.build_embeddings()
+        faiss = FAISS.load_local(faiss_folder_path, embeddings)
+
+        super().__init__(
+            swipy_bot_token=os.environ["ANTI_SWIPY_BOT_TOKEN"],
+            vector_store=faiss,
+        )
+
 
 def pdf_to_faiss(pdf_path: str | Path) -> FAISS:
     """Ingest a PDF and return a FAISS instance."""
@@ -93,7 +112,7 @@ def pdf_to_faiss(pdf_path: str | Path) -> FAISS:
         print("    LENGTH:", len(text), "CHARS")
         print()
 
-    embeddings = OpenAIEmbeddings()
+    embeddings = FaissBot.build_embeddings()
     return FAISS.from_texts(texts, embeddings)
 
 
@@ -145,7 +164,7 @@ def repo_to_faiss(repo_path: str | Path) -> FAISS:
     print()
     print("INDEXING...")
 
-    embeddings = OpenAIEmbeddings(allowed_special="all")
+    embeddings = FaissBot.build_embeddings()
     faiss = FAISS.from_texts(texts, embeddings)
 
     print("DONE")

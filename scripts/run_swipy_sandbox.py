@@ -2,39 +2,38 @@
 # pylint: disable=wrong-import-position
 import asyncio
 import os
+import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
+REPO_PATH = Path(__file__).parents[1]
+sys.path.append(str(REPO_PATH))
+
 from swipy_client import patch_openai
 
 patch_openai()
 
-from chatbots.talk_to_doc import TalkToDocBot, repo_to_faiss
+from chatbots.talk_to_doc import FaissBot
 
 
 async def main() -> None:
     """Run the chatbot sandbox."""
     await asyncio.gather(
         asyncio.create_task(
-            TalkToDocBot(
+            FaissBot(
                 os.environ["ANTI_SWIPY_BOT_TOKEN"],
-                repo_to_faiss(".."),
+                REPO_PATH / "data" / "faiss" / "this_repo",
             ).run_fulfillment_client()
         ),
-        # asyncio.create_task(
-        #     TalkToDocBot(
-        #         os.environ["ANTI_SWIPY_BOT_TOKEN"],
-        #         pdf_to_faiss("2023_GPT4All_Technical_Report.pdf"),
-        #     ).run_fulfillment_client()
-        # ),
-        # asyncio.create_task(
-        #     TalkToDocBot(
-        #         os.environ["TEREMS_BOT_TOKEN"],
-        #         pdf_to_faiss("2203.02155.pdf"),
-        #     ).run_fulfillment_client()
-        # ),
+        asyncio.create_task(
+            FaissBot(
+                os.environ["LANGCHAIN_BOT_TOKEN"],
+                REPO_PATH / "data" / "faiss" / "langchain",
+            ).run_fulfillment_client()
+        ),
     )
 
 
