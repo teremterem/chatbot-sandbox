@@ -29,6 +29,7 @@ class TalkToDocBot:
     async def run_fulfillment_client(self):
         """Connect to Swipy Platform and listen for fulfillment requests."""
         print("STARTING BOT...")
+        print()
         await SwipyBot(self.swipy_bot_token).run_fulfillment_client(self._fulfillment_handler)
 
     async def _fulfillment_handler(self, bot: SwipyBot, data: dict[str, Any]) -> None:
@@ -38,7 +39,10 @@ class TalkToDocBot:
 
         query = self._build_query(data)
 
-        llm_chat = ChatOpenAI(user=data["user_uuid"])
+        llm_chat = ChatOpenAI(
+            user=data["user_uuid"],
+            temperature=0,
+        )
         chain = load_qa_chain(llm_chat, chain_type="stuff")
         docs = self.vector_store.similarity_search(query)
         response = await chain.arun(
@@ -52,7 +56,10 @@ class TalkToDocBot:
 
         print("ASSISTANT:", response)
         print()
-        await bot.send_message(text=response)
+        await bot.send_message(
+            text=response,
+            parse_mode="Markdown",
+        )
 
     @staticmethod
     def _build_query(data: dict[str, Any]) -> str:
