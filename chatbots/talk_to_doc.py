@@ -89,7 +89,7 @@ class FaissBot(TalkToDocBot):
         faiss = FAISS.load_local(faiss_folder_path, embeddings)
 
         super().__init__(
-            swipy_bot_token=os.environ["ANTI_SWIPY_BOT_TOKEN"],
+            swipy_bot_token=swipy_bot_token,
             vector_store=faiss,
         )
 
