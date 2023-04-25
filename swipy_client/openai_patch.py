@@ -8,7 +8,6 @@ from swipy_client.swipy_requestor import log_llm_request, log_llm_response
 
 def patch_openai() -> None:
     """Patch openai to log requests to Swipy Platform."""
-
     classes = (
         "ChatCompletion",
         "Completion",

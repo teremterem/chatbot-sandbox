@@ -28,7 +28,7 @@ class TalkToDocBot:
 
     async def run_fulfillment_client(self):
         """Connect to Swipy Platform and listen for fulfillment requests."""
-        print("STARTING BOT...")
+        print("BOT STARTED")
         print()
         await SwipyBot(self.swipy_bot_token).run_fulfillment_client(self._fulfillment_handler)
 
@@ -73,9 +73,9 @@ class TalkToDocBot:
         return "".join(query_parts)
 
 
-def pdf_to_faiss(pdf_filename: str) -> FAISS:
+def pdf_to_faiss(pdf_path: str | Path) -> FAISS:
     """Ingest a PDF and return a FAISS instance."""
-    reader = PdfReader(pdf_filename)
+    reader = PdfReader(pdf_path)
     raw_text_parts = [page.extract_text() for page in reader.pages]
     raw_text = "\n".join(raw_text_parts)
 
@@ -95,14 +95,9 @@ def pdf_to_faiss(pdf_filename: str) -> FAISS:
     return FAISS.from_texts(texts, embeddings)
 
 
-def repo_to_faiss(repo_path: str) -> FAISS:
+def repo_to_faiss(repo_path: str | Path) -> FAISS:
     """Ingest a git repository and return a FAISS instance."""
     filepaths = _list_files_in_repo(repo_path)
-    print()
-    for filepath in filepaths:
-        print(filepath)
-    print()
-    print("TOTAL:", len(filepaths), "FILES")
     print()
     print("================================================================================")
     print()
@@ -126,8 +121,18 @@ def repo_to_faiss(repo_path: str) -> FAISS:
         print("================================================================================")
         print()
 
+    for filepath in filepaths:
+        print(filepath)
+    print()
+    print(len(filepaths), "FILES")
+    print(len(texts), "SNIPPETS")
+    print()
+    print("INDEXING...")
     embeddings = OpenAIEmbeddings()
-    return FAISS.from_texts(texts, embeddings)
+    faiss = FAISS.from_texts(texts, embeddings)
+    print("DONE")
+    print()
+    return faiss
 
 
 def _list_files_in_repo(repo_path: str | Path) -> list[Path]:
