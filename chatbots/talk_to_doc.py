@@ -59,9 +59,8 @@ class TalkToDocBot:
             ],
         )
 
-        final_response_parts = [llm_response, "\n\nPOSSIBLE SOURCES:"]
-        for doc in docs:
-            final_response_parts.append(f"\n- [{doc.metadata['path']}]({doc.metadata['source']})")
+        source_set = {f"\n- [{doc.metadata['path']}]({doc.metadata['source']})" for doc in docs}
+        final_response_parts = [llm_response, "\n\nPOSSIBLE SOURCES:", *sorted(source_set)]
         final_response = "".join(final_response_parts)
 
         print("ASSISTANT:", final_response)
