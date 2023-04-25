@@ -15,6 +15,7 @@ from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.embeddings.base import Embeddings
+from langchain.schema import Document
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import VectorStore
 from pathspec import pathspec
@@ -134,7 +135,7 @@ def repo_to_faiss(repo_path: str | Path) -> FAISS:
         chunk_overlap=200,
         length_function=len,
     )
-    texts = []
+    documents: list[Document] = []
     for filepath in filepaths:
         print(filepath, end=" - ")
 
@@ -148,7 +149,18 @@ def repo_to_faiss(repo_path: str | Path) -> FAISS:
         except UnicodeDecodeError as exc:
             print(f"ERROR! SKIPPING A FILE! {exc}")
         else:
-            texts.extend(text_splitter.split_text(raw_text))
+            text_snippets = text_splitter.split_text(raw_text)
+            for snippet_idx, text_snippet in enumerate(text_snippets):
+                documents.append(
+                    Document(
+                        page_content=text_snippet,
+                        metadata={
+                            "path": filepath.as_posix(),
+                            "snippet_idx": snippet_idx,
+                            "snippets_total": len(text_snippets),
+                        },
+                    )
+                )
 
     print()
     print("================================================================================")
@@ -161,12 +173,12 @@ def repo_to_faiss(repo_path: str | Path) -> FAISS:
     #     print()
     print()
     print(len(filepaths), "FILES")
-    print(len(texts), "SNIPPETS")
+    print(len(documents), "SNIPPETS")
     print()
     print("INDEXING...")
 
     embeddings = FaissBot.build_embeddings()
-    faiss = FAISS.from_texts(texts, embeddings)
+    faiss = FAISS.from_documents(documents, embeddings)
 
     print("DONE")
     print()

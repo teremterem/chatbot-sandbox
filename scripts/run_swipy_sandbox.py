@@ -30,6 +30,12 @@ async def main() -> None:
         ),
         asyncio.create_task(
             FaissBot(
+                os.environ["LANGCHAIN_DOC_BOT_TOKEN"],
+                REPO_PATH / "data" / "faiss" / "langchain_docs",
+            ).run_fulfillment_client()
+        ),
+        asyncio.create_task(
+            FaissBot(
                 os.environ["LANGCHAIN_BOT_TOKEN"],
                 REPO_PATH / "data" / "faiss" / "langchain",
             ).run_fulfillment_client()
