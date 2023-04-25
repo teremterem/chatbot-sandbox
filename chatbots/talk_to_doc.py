@@ -44,7 +44,7 @@ class TalkToDocBot:
             temperature=0,
         )
         chain = load_qa_chain(llm_chat, chain_type="stuff")
-        docs = self.vector_store.similarity_search(query)
+        docs = await self.vector_store.asimilarity_search(query)
         response = await chain.arun(
             input_documents=docs,
             question=query,

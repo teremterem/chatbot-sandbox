@@ -20,7 +20,7 @@ async def main() -> None:
         asyncio.create_task(
             TalkToDocBot(
                 os.environ["ANTI_SWIPY_BOT_TOKEN"],
-                repo_to_faiss("."),
+                repo_to_faiss(".."),
             ).run_fulfillment_client()
         ),
         # asyncio.create_task(
