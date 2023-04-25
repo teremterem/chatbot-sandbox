@@ -21,6 +21,8 @@ certifi==2022.12.7
     #   httpcore
     #   httpx
     #   requests
+chardet==5.1.0
+    # via -r requirements.in
 charset-normalizer==3.1.0
     # via
     #   aiohttp
@@ -89,6 +91,8 @@ pypdf2==3.0.1
 python-dateutil==2.8.2
     # via pinecone-client
 python-dotenv==1.0.0
+    # via -r requirements.in
+python-magic==0.4.27
     # via -r requirements.in
 pyyaml==6.0
     # via

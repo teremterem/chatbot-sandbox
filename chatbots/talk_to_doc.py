@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+import chardet
+import magic
 from PyPDF2 import PdfReader
 from langchain import FAISS
 from langchain.chains.question_answering import load_qa_chain
@@ -114,25 +116,36 @@ def repo_to_faiss(repo_path: str | Path) -> FAISS:
     )
     texts = []
     for filepath in filepaths:
-        with open(repo_path / filepath, "r", encoding="utf-8") as file:
-            raw_text = file.read()
+        print(filepath, end=" - ")
 
-        texts.extend(text_splitter.split_text(raw_text))
+        with open(repo_path / filepath, "rb") as file:
+            raw_bytes = file.read()
+        detected_encoding = chardet.detect(raw_bytes).get("encoding") or "utf-8"
+        print(detected_encoding)
 
-    for text in texts:
-        print(text)
-        print()
-        print("================================================================================")
-        print()
-    for filepath in filepaths:
-        print(filepath)
+        try:
+            raw_text = raw_bytes.decode(detected_encoding)
+        except UnicodeDecodeError as exc:
+            print(f"ERROR! SKIPPING A FILE! {exc}")
+        else:
+            texts.extend(text_splitter.split_text(raw_text))
+
+    print()
+    print("================================================================================")
+    print()
+
+    # for text in texts:
+    #     print(text)
+    #     print()
+    #     print("================================================================================")
+    #     print()
     print()
     print(len(filepaths), "FILES")
     print(len(texts), "SNIPPETS")
     print()
     print("INDEXING...")
 
-    embeddings = OpenAIEmbeddings()
+    embeddings = OpenAIEmbeddings(allowed_special="all")
     faiss = FAISS.from_texts(texts, embeddings)
 
     print("DONE")
@@ -143,6 +156,7 @@ def repo_to_faiss(repo_path: str | Path) -> FAISS:
 def _list_files_in_repo(repo_path: str | Path) -> list[Path]:
     repo_path = Path(repo_path)
 
+    # ".*\n" means skip all "hidden" files and directories too
     gitignore_content = ".*\n" + _read_gitignore(repo_path)
     spec = pathspec.PathSpec.from_lines("gitwildmatch", gitignore_content.splitlines())
 
@@ -154,17 +168,23 @@ def _list_files_in_repo(repo_path: str | Path) -> list[Path]:
 
         for file in files:
             file_path = root / file
-            if not spec.match_file(file_path):
+            if not spec.match_file(file_path) and _is_text_file(file_path):
                 files_list.append(file_path.relative_to(repo_path))
 
     return files_list
 
 
 def _read_gitignore(repo_path: str | Path) -> str:
-    gitignore_path = os.path.join(repo_path, ".gitignore")
-    if not os.path.isfile(gitignore_path):
+    gitignore_path = Path(repo_path) / ".gitignore"
+    if not gitignore_path.is_file():
         return ""
 
     with open(gitignore_path, "r", encoding="utf-8") as file:
         gitignore_content = file.read()
     return gitignore_content
+
+
+def _is_text_file(file_path: str | Path):
+    file_mime = magic.from_file(file_path, mime=True)
+    # TODO is this an exhaustive list of mime types that we want to index ?
+    return file_mime.startswith("text/") or file_mime.startswith("application/json")
