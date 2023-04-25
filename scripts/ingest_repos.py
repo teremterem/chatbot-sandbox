@@ -23,13 +23,13 @@ def main() -> None:
     )
     repo_to_faiss(
         REPO_PATH / ".." / "langchain" / "docs",
-        source_url_base="https://github.com/hwchase17/langchain/blob/master/docs/",
+        source_url_base="https://github.com/hwchase17/langchain/blob/v0.0.148/docs/",
     ).save_local(
         str(REPO_PATH / "data" / "faiss" / "langchain_docs"),
     )
     repo_to_faiss(
         REPO_PATH / ".." / "langchain",
-        source_url_base="https://github.com/hwchase17/langchain/blob/master/",
+        source_url_base="https://github.com/hwchase17/langchain/blob/v0.0.148/",
     ).save_local(
         str(REPO_PATH / "data" / "faiss" / "langchain"),
     )

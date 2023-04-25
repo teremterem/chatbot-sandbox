@@ -11,7 +11,7 @@ import chardet
 import magic
 from PyPDF2 import PdfReader
 from langchain import FAISS
-from langchain.chains.qa_with_sources import load_qa_with_sources_chain
+from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.embeddings.base import Embeddings
@@ -48,9 +48,9 @@ class TalkToDocBot:
             user=data["user_uuid"],
             temperature=0,
         )
-        chain = load_qa_with_sources_chain(llm_chat, chain_type=self.chain_type)
+        chain = load_qa_chain(llm_chat, chain_type=self.chain_type)
         docs = await self.vector_store.asimilarity_search(query)
-        response = await chain.arun(
+        llm_response = await chain.arun(
             input_documents=docs,
             question=query,
             stop=[
@@ -59,10 +59,16 @@ class TalkToDocBot:
             ],
         )
 
-        print("ASSISTANT:", response)
+        final_response_parts = [llm_response, "\n\nPOSSIBLE SOURCES:"]
+        for doc in docs:
+            final_response_parts.append("\n- ")
+            final_response_parts.append(doc.metadata["source"])
+        final_response = "".join(final_response_parts)
+
+        print("ASSISTANT:", final_response)
         print()
         await bot.send_message(
-            text=response,
+            text=final_response,
             parse_mode="Markdown",
         )
 
