@@ -25,9 +25,10 @@ from swipy_client import SwipyBot
 class TalkToDocBot:
     """A chatbot that answers questions about a PDF document."""
 
-    def __init__(self, swipy_bot_token: str, vector_store: VectorStore) -> None:
+    def __init__(self, swipy_bot_token: str, vector_store: VectorStore, chain_type="stuff") -> None:
         self.swipy_bot_token = swipy_bot_token
         self.vector_store = vector_store
+        self.chain_type = chain_type
 
     async def run_fulfillment_client(self):
         """Connect to Swipy Platform and listen for fulfillment requests."""
@@ -46,7 +47,7 @@ class TalkToDocBot:
             user=data["user_uuid"],
             temperature=0,
         )
-        chain = load_qa_chain(llm_chat, chain_type="stuff")
+        chain = load_qa_chain(llm_chat, chain_type=self.chain_type)
         docs = await self.vector_store.asimilarity_search(query)
         response = await chain.arun(
             input_documents=docs,
