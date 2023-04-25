@@ -12,7 +12,7 @@ import magic
 from PyPDF2 import PdfReader
 from langchain import FAISS
 from langchain.chains.question_answering import load_qa_chain
-from langchain.chat_models import ChatOpenAI
+from langchain.chat_models import PromptLayerChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.embeddings.base import Embeddings
 from langchain.schema import Document
@@ -44,12 +44,13 @@ class TalkToDocBot:
 
         query = self._build_query(data)
 
-        llm_chat = ChatOpenAI(
+        llm_chat = PromptLayerChatOpenAI(
             user=data["user_uuid"],
             temperature=0,
+            pl_tags=[f"ff{data['fulfillment_id']}"],
         )
         chain = load_qa_chain(llm_chat, chain_type=self.chain_type)
-        docs = await self.vector_store.asimilarity_search(query)
+        docs = await self.vector_store.asimilarity_search(query, k=4)
         llm_response = await chain.arun(
             input_documents=docs,
             question=query,

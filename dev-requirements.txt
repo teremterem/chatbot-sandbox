@@ -192,7 +192,7 @@ nbclassic==0.5.5
     # via
     #   jupyterlab
     #   notebook
-nbclient==0.7.3
+nbclient==0.7.4
     # via nbconvert
 nbconvert==7.3.1
     # via
@@ -241,7 +241,7 @@ pickleshare==0.7.5
     # via ipython
 pip-tools==6.13.0
     # via -r dev-requirements.in
-platformdirs==3.2.0
+platformdirs==3.3.0
     # via
     #   black
     #   jupyter-core
