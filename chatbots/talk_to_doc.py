@@ -61,8 +61,7 @@ class TalkToDocBot:
 
         final_response_parts = [llm_response, "\n\nPOSSIBLE SOURCES:"]
         for doc in docs:
-            final_response_parts.append("\n- ")
-            final_response_parts.append(doc.metadata["source"])
+            final_response_parts.append(f"\n- [{doc.metadata['path']}]({doc.metadata['source']})")
         final_response = "".join(final_response_parts)
 
         print("ASSISTANT:", final_response)
@@ -70,6 +69,7 @@ class TalkToDocBot:
         await bot.send_message(
             text=final_response,
             parse_mode="Markdown",
+            disable_web_page_preview=True,
         )
 
     @staticmethod
