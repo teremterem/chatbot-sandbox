@@ -97,11 +97,15 @@ def pdf_to_faiss(pdf_path: str | Path) -> FAISS:
 
 def repo_to_faiss(repo_path: str | Path) -> FAISS:
     """Ingest a git repository and return a FAISS instance."""
-    filepaths = _list_files_in_repo(repo_path)
+    repo_path = Path(repo_path).resolve()
+
+    print()
+    print("REPO:", repo_path)
     print()
     print("================================================================================")
     print()
 
+    filepaths = _list_files_in_repo(repo_path)
     text_splitter = CharacterTextSplitter(
         separator="\n",
         chunk_size=1000,
@@ -110,7 +114,7 @@ def repo_to_faiss(repo_path: str | Path) -> FAISS:
     )
     texts = []
     for filepath in filepaths:
-        with open(filepath, "r", encoding="utf-8") as file:
+        with open(repo_path / filepath, "r", encoding="utf-8") as file:
             raw_text = file.read()
 
         texts.extend(text_splitter.split_text(raw_text))
@@ -120,7 +124,6 @@ def repo_to_faiss(repo_path: str | Path) -> FAISS:
         print()
         print("================================================================================")
         print()
-
     for filepath in filepaths:
         print(filepath)
     print()
@@ -128,8 +131,10 @@ def repo_to_faiss(repo_path: str | Path) -> FAISS:
     print(len(texts), "SNIPPETS")
     print()
     print("INDEXING...")
+
     embeddings = OpenAIEmbeddings()
     faiss = FAISS.from_texts(texts, embeddings)
+
     print("DONE")
     print()
     return faiss
