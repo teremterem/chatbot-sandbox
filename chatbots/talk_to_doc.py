@@ -11,7 +11,7 @@ import chardet
 import magic
 from PyPDF2 import PdfReader
 from langchain import FAISS
-from langchain.chains.question_answering import load_qa_chain
+from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.embeddings.base import Embeddings
@@ -48,7 +48,7 @@ class TalkToDocBot:
             user=data["user_uuid"],
             temperature=0,
         )
-        chain = load_qa_chain(llm_chat, chain_type=self.chain_type)
+        chain = load_qa_with_sources_chain(llm_chat, chain_type=self.chain_type)
         docs = await self.vector_store.asimilarity_search(query)
         response = await chain.arun(
             input_documents=docs,
@@ -118,9 +118,16 @@ def pdf_to_faiss(pdf_path: str | Path) -> FAISS:
     return FAISS.from_texts(texts, embeddings)
 
 
-def repo_to_faiss(repo_path: str | Path) -> FAISS:
+def repo_to_faiss(
+    repo_path: str | Path,
+    source_url_base: str = None,
+) -> FAISS:
     """Ingest a git repository and return a FAISS instance."""
+    # pylint: disable=too-many-locals
     repo_path = Path(repo_path).resolve()
+    if source_url_base:
+        source_url_base = source_url_base.strip()
+        source_url_base = source_url_base.rstrip("/")
 
     print()
     print("REPO:", repo_path)
@@ -151,11 +158,16 @@ def repo_to_faiss(repo_path: str | Path) -> FAISS:
         else:
             text_snippets = text_splitter.split_text(raw_text)
             for snippet_idx, text_snippet in enumerate(text_snippets):
+                filepath_posix = filepath.as_posix()
+                source = filepath_posix
+                if source_url_base:
+                    source = f"{source_url_base}/{filepath_posix}"
                 documents.append(
                     Document(
                         page_content=text_snippet,
                         metadata={
-                            "path": filepath.as_posix(),
+                            "source": source,
+                            "path": filepath_posix,
                             "snippet_idx": snippet_idx,
                             "snippets_total": len(text_snippets),
                         },
