@@ -1,5 +1,5 @@
 """Ingest the repos into FAISS and save FAISS indices to disk."""
-# pylint: disable=wrong-import-position
+# pylint: disable=wrong-import-position,import-error
 import sys
 from pathlib import Path
 
@@ -17,20 +17,20 @@ def main() -> None:
     """Ingest the repos into FAISS and save FAISS indices to disk."""
     repo_to_faiss(
         REPO_PATH,
-        additional_gitignore_content="docs/",
         source_url_base="https://github.com/teremterem/chatbot-sandbox/blob/main/",
     ).save_local(
         str(REPO_PATH / "data" / "faiss" / "this_repo"),
     )
     repo_to_faiss(
         REPO_PATH / ".." / "langchain" / "docs",
-        source_url_base="https://github.com/hwchase17/langchain/blob/v0.0.148/docs/",
+        source_url_base="https://github.com/hwchase17/langchain/blob/v0.0.150/docs/",
     ).save_local(
         str(REPO_PATH / "data" / "faiss" / "langchain_docs"),
     )
     repo_to_faiss(
         REPO_PATH / ".." / "langchain",
-        source_url_base="https://github.com/hwchase17/langchain/blob/v0.0.148/",
+        additional_gitignore_content="docs/",
+        source_url_base="https://github.com/hwchase17/langchain/blob/v0.0.150/",
     ).save_local(
         str(REPO_PATH / "data" / "faiss" / "langchain"),
     )
