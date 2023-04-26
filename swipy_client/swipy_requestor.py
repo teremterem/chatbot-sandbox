@@ -3,12 +3,14 @@ import asyncio
 import json
 import logging
 import os
+import time
 from contextvars import ContextVar
 from typing import Any, Callable, Awaitable
 
 import httpx
 from httpx import Response
 from websockets.client import connect
+from websockets.exceptions import ConnectionClosedError
 
 swipy_platform_http_uri = os.getenv("SWIPY_PLATFORM_HTTP_URI", "http://localhost:8000")
 swipy_platform_ws_uri = os.getenv("SWIPY_PLATFORM_WS_URI", "ws://localhost:8000")
@@ -33,15 +35,26 @@ class SwipyBot:
     async def run_fulfillment_client(self, fulfillment_handler: FulfillmentHandler) -> None:
         """Connect to Swipy Platform and listen for fulfillment requests."""
         # pylint: disable=no-member
-        # TODO reconnect if connection is lost ? how many times ? exponential backoff ?
-        async with connect(
-            f"{swipy_platform_ws_uri}/fulfillment_websocket/",
-            extra_headers={"X-Swipy-Bot-Token": self.swipy_bot_token},
-        ) as websocket:
-            while True:
-                data_str = await websocket.recv()
-                data = json.loads(data_str)
-                asyncio.create_task(self._fulfillment_handler_wrapper(fulfillment_handler, data))
+        attempt = 1
+        while True:
+            attempt_time = time.time()
+            try:
+                async with connect(
+                    f"{swipy_platform_ws_uri}/fulfillment_websocket/",
+                    extra_headers={"X-Swipy-Bot-Token": self.swipy_bot_token},
+                ) as websocket:
+                    while True:
+                        data_str = await websocket.recv()
+                        data = json.loads(data_str)
+                        asyncio.create_task(self._fulfillment_handler_wrapper(fulfillment_handler, data))
+            except ConnectionClosedError:
+                if time.time() - attempt_time > 120:
+                    # if more than 2 minutes passed since the last attempt_time, then reset attempt to 1
+                    attempt = 1
+
+                sleep_time = 2**attempt
+                logger.warning("WEBSOCKET CONNECTION LOST, RETRYING IN %s SECONDS", sleep_time, exc_info=True)
+                await asyncio.sleep(sleep_time)
 
     async def send_message(self, **data) -> None:
         """
