@@ -1,5 +1,5 @@
 """Entry point for the chatbot sandbox."""
-# pylint: disable=wrong-import-position
+# pylint: disable=wrong-import-position,import-error
 import asyncio
 import os
 import sys
@@ -26,7 +26,7 @@ async def main() -> None:
             FaissBot(
                 os.environ["ANTI_SWIPY_BOT_TOKEN"],
                 REPO_PATH / "data" / "faiss" / "this_repo",
-                pretty_path_prefix="langchain/",
+                pretty_path_prefix="chatbot-sandbox/",
             ).run_fulfillment_client()
         ),
         asyncio.create_task(
@@ -40,7 +40,7 @@ async def main() -> None:
             FaissBot(
                 os.environ["LANGCHAIN_BOT_TOKEN"],
                 REPO_PATH / "data" / "faiss" / "langchain",
-                pretty_path_prefix="chatbot-sandbox/",
+                pretty_path_prefix="langchain/",
             ).run_fulfillment_client()
         ),
     )
