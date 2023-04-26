@@ -17,6 +17,7 @@ def main() -> None:
     """Ingest the repos into FAISS and save FAISS indices to disk."""
     repo_to_faiss(
         REPO_PATH,
+        additional_gitignore_content="docs/",
         source_url_base="https://github.com/teremterem/chatbot-sandbox/blob/main/",
     ).save_local(
         str(REPO_PATH / "data" / "faiss" / "this_repo"),

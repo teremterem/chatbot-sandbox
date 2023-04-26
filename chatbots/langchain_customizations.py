@@ -17,6 +17,7 @@ def load_swipy_conv_retrieval_chain(
     llm: BaseLanguageModel,
     retriever: BaseRetriever,
     swipy_bot: SwipyBot,
+    pretty_path_prefix: str = "",
     condense_question_prompt: BasePromptTemplate = CONDENSE_QUESTION_PROMPT,
     verbose: bool = False,
     combine_docs_chain_kwargs: dict = None,
@@ -30,6 +31,7 @@ def load_swipy_conv_retrieval_chain(
     doc_chain = load_swipy_refine_chain(
         llm,
         swipy_bot,
+        pretty_path_prefix=pretty_path_prefix,
         verbose=verbose,
         **combine_docs_chain_kwargs,
     )
@@ -45,6 +47,7 @@ def load_swipy_conv_retrieval_chain(
 def load_swipy_refine_chain(
     llm: BaseLanguageModel,
     swipy_bot: SwipyBot,
+    pretty_path_prefix: str = "",
     question_prompt: BasePromptTemplate = None,
     refine_prompt: BasePromptTemplate = None,
     document_variable_name: str = "context_str",
@@ -53,11 +56,12 @@ def load_swipy_refine_chain(
     verbose: bool = None,
     callback_manager: BaseCallbackManager = None,
     **kwargs: Any,
-) -> RefineDocumentsChain:
+) -> "SwipyRefineDocumentsChain":
     """
     A modification of:
     langchain/chains/question_answering/__init__.py::_load_refine_chain()
     """
+    # pylint: disable=too-many-locals
     _question_prompt = question_prompt or refine_prompts.QUESTION_PROMPT_SELECTOR.get_prompt(llm)
     _refine_prompt = refine_prompt or refine_prompts.REFINE_PROMPT_SELECTOR.get_prompt(llm)
     initial_chain = LLMChain(
@@ -75,6 +79,7 @@ def load_swipy_refine_chain(
     )
     return SwipyRefineDocumentsChain(
         swipy_bot=swipy_bot,
+        pretty_path_prefix=pretty_path_prefix,
         initial_llm_chain=initial_chain,
         refine_llm_chain=refine_chain,
         document_variable_name=document_variable_name,
@@ -89,6 +94,7 @@ class SwipyRefineDocumentsChain(RefineDocumentsChain):
     """A refine chain that reports the document it is currently processing to the user."""
 
     swipy_bot: SwipyBot
+    pretty_path_prefix: str = ""
 
     async def acombine_docs(self, docs: list[Document], **kwargs: Any) -> tuple[str, dict]:
         """Combine by mapping first chain over all, then stuffing into final chain."""
@@ -106,7 +112,7 @@ class SwipyRefineDocumentsChain(RefineDocumentsChain):
 
     async def _report_doc_processing(self, doc: Document) -> None:
         await self.swipy_bot.send_message(
-            text=f"_Looking at_ [{doc.metadata['path']}]({doc.metadata['source']})",
+            text=f"_Looking at_ [{self.pretty_path_prefix}{doc.metadata['path']}]({doc.metadata['source']})",
             parse_mode="Markdown",
             disable_web_page_preview=True,
             is_visible_to_bot=False,

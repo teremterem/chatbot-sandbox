@@ -26,9 +26,15 @@ from swipy_client import SwipyBot
 class TalkToDocBot:
     """A chatbot that answers questions about a PDF document."""
 
-    def __init__(self, swipy_bot_token: str, vector_store: VectorStore) -> None:
+    def __init__(
+        self,
+        swipy_bot_token: str,
+        vector_store: VectorStore,
+        pretty_path_prefix: str = "",
+    ) -> None:
         self.swipy_bot_token = swipy_bot_token
         self.vector_store = vector_store
+        self.pretty_path_prefix = pretty_path_prefix
 
     async def run_fulfillment_client(self):
         """Connect to Swipy Platform and listen for fulfillment requests."""
@@ -51,6 +57,7 @@ class TalkToDocBot:
             llm_chat,
             self.vector_store.as_retriever(search_kwargs={"k": 3}),
             bot,
+            pretty_path_prefix=self.pretty_path_prefix,
             verbose=True,
         )
 
@@ -74,13 +81,19 @@ class TalkToDocBot:
 class FaissBot(TalkToDocBot):
     """A chatbot that answers questions using a FAISS index that was saved locally."""
 
-    def __init__(self, swipy_bot_token: str, faiss_folder_path: str | Path) -> None:
+    def __init__(
+        self,
+        swipy_bot_token: str,
+        faiss_folder_path: str | Path,
+        pretty_path_prefix: str = "",
+    ) -> None:
         embeddings = self.build_embeddings()
         faiss = FAISS.load_local(faiss_folder_path, embeddings)
 
         super().__init__(
             swipy_bot_token=swipy_bot_token,
             vector_store=faiss,
+            pretty_path_prefix=pretty_path_prefix,
         )
 
 
@@ -108,8 +121,8 @@ def pdf_to_faiss(pdf_path: str | Path) -> FAISS:
 
 def repo_to_faiss(
     repo_path: str | Path,
+    additional_gitignore_content: str = "",
     source_url_base: str = None,
-    pretty_path_prefix: str = None,
 ) -> FAISS:
     """Ingest a git repository and return a FAISS instance."""
     # pylint: disable=too-many-locals
@@ -124,7 +137,7 @@ def repo_to_faiss(
     print("================================================================================")
     print()
 
-    filepaths = _list_files_in_repo(repo_path)
+    filepaths = _list_files_in_repo(repo_path, additional_gitignore_content)
     text_splitter = CharacterTextSplitter(
         separator="\n",
         chunk_size=2000,
@@ -153,17 +166,12 @@ def repo_to_faiss(
                 if source_url_base:
                     source = f"{source_url_base}/{filepath_posix}"
 
-                pretty_path = filepath_posix
-                if pretty_path_prefix:
-                    pretty_path = f"{pretty_path_prefix}{filepath_posix}"
-
                 documents.append(
                     Document(
                         page_content=text_snippet,
                         metadata={
                             "source": source,
                             "path": filepath_posix,
-                            "pretty_path": pretty_path,
                             "snippet_idx": snippet_idx,
                             "snippets_total": len(text_snippets),
                         },
@@ -188,11 +196,11 @@ def repo_to_faiss(
     return faiss
 
 
-def _list_files_in_repo(repo_path: str | Path) -> list[Path]:
+def _list_files_in_repo(repo_path: str | Path, additional_gitignore_content: str) -> list[Path]:
     repo_path = Path(repo_path)
 
     # ".*\n" means skip all "hidden" files and directories too
-    gitignore_content = ".*\n" + _read_gitignore(repo_path)
+    gitignore_content = f".*\n{additional_gitignore_content}\n{_read_gitignore(repo_path)}"
     spec = pathspec.PathSpec.from_lines("gitwildmatch", gitignore_content.splitlines())
 
     files_list = []

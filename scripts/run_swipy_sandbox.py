@@ -26,18 +26,21 @@ async def main() -> None:
             FaissBot(
                 os.environ["ANTI_SWIPY_BOT_TOKEN"],
                 REPO_PATH / "data" / "faiss" / "this_repo",
+                pretty_path_prefix="langchain/",
             ).run_fulfillment_client()
         ),
         asyncio.create_task(
             FaissBot(
                 os.environ["LANGCHAIN_DOC_BOT_TOKEN"],
                 REPO_PATH / "data" / "faiss" / "langchain_docs",
+                pretty_path_prefix="langchain/docs/",
             ).run_fulfillment_client()
         ),
         asyncio.create_task(
             FaissBot(
                 os.environ["LANGCHAIN_BOT_TOKEN"],
                 REPO_PATH / "data" / "faiss" / "langchain",
+                pretty_path_prefix="chatbot-sandbox/",
             ).run_fulfillment_client()
         ),
     )
