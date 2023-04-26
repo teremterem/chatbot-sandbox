@@ -54,7 +54,7 @@ class TalkToDocBot:
         )
 
         chat_history = _build_chat_history_for_qna(data["message_history"])
-        result = qna({"question": data["message"]["content"], "chat_history": chat_history})
+        result = qna.acall({"question": data["message"]["content"], "chat_history": chat_history})
 
         print("ASSISTANT:")
         pprint(result)
