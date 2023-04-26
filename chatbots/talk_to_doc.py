@@ -11,7 +11,6 @@ import chardet
 import magic
 from PyPDF2 import PdfReader
 from langchain import FAISS
-from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import PromptLayerChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.embeddings.base import Embeddings
@@ -20,6 +19,7 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import VectorStore
 from pathspec import pathspec
 
+from chatbots.langchain_customizations import load_swipy_conv_retrieval_chain
 from swipy_client import SwipyBot
 
 
@@ -47,10 +47,11 @@ class TalkToDocBot:
             temperature=0,
             pl_tags=[f"ff{data['fulfillment_id']}"],
         )
-        qna = ConversationalRetrievalChain.from_llm(
+        qna = load_swipy_conv_retrieval_chain(
             llm_chat,
-            self.vector_store.as_retriever(),
-            chain_type="refine",
+            self.vector_store.as_retriever(search_kwargs={"k": 3}),
+            bot,
+            verbose=True,
         )
 
         chat_history = _build_chat_history_for_qna(data["message_history"])
