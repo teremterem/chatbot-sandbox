@@ -109,6 +109,7 @@ def pdf_to_faiss(pdf_path: str | Path) -> FAISS:
 def repo_to_faiss(
     repo_path: str | Path,
     source_url_base: str = None,
+    pretty_path_prefix: str = None,
 ) -> FAISS:
     """Ingest a git repository and return a FAISS instance."""
     # pylint: disable=too-many-locals
@@ -126,8 +127,8 @@ def repo_to_faiss(
     filepaths = _list_files_in_repo(repo_path)
     text_splitter = CharacterTextSplitter(
         separator="\n",
-        chunk_size=1000,
-        chunk_overlap=200,
+        chunk_size=2000,
+        chunk_overlap=400,
         length_function=len,
     )
     documents: list[Document] = []
@@ -147,15 +148,22 @@ def repo_to_faiss(
             text_snippets = text_splitter.split_text(raw_text)
             for snippet_idx, text_snippet in enumerate(text_snippets):
                 filepath_posix = filepath.as_posix()
+
                 source = filepath_posix
                 if source_url_base:
                     source = f"{source_url_base}/{filepath_posix}"
+
+                pretty_path = filepath_posix
+                if pretty_path_prefix:
+                    pretty_path = f"{pretty_path_prefix}{filepath_posix}"
+
                 documents.append(
                     Document(
                         page_content=text_snippet,
                         metadata={
                             "source": source,
                             "path": filepath_posix,
+                            "pretty_path": pretty_path,
                             "snippet_idx": snippet_idx,
                             "snippets_total": len(text_snippets),
                         },
