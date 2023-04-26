@@ -2,16 +2,16 @@
 This chatbot is based on materials from the following video by Prompt Engineering YouTube channel
 (checkout video description for more links): https://www.youtube.com/watch?v=TLf90ipMzfE
 """
-import itertools
 import os
 from pathlib import Path
+from pprint import pprint
 from typing import Any
 
 import chardet
 import magic
 from PyPDF2 import PdfReader
 from langchain import FAISS
-from langchain.chains.question_answering import load_qa_chain
+from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import PromptLayerChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.embeddings.base import Embeddings
@@ -26,10 +26,9 @@ from swipy_client import SwipyBot
 class TalkToDocBot:
     """A chatbot that answers questions about a PDF document."""
 
-    def __init__(self, swipy_bot_token: str, vector_store: VectorStore, chain_type="stuff") -> None:
+    def __init__(self, swipy_bot_token: str, vector_store: VectorStore) -> None:
         self.swipy_bot_token = swipy_bot_token
         self.vector_store = vector_store
-        self.chain_type = chain_type
 
     async def run_fulfillment_client(self):
         """Connect to Swipy Platform and listen for fulfillment requests."""
@@ -39,49 +38,31 @@ class TalkToDocBot:
 
     async def _fulfillment_handler(self, bot: SwipyBot, data: dict[str, Any]) -> None:
         """Handle fulfillment requests from Swipy Platform."""
-        print("USER:", data["message"]["content"])
+        print("USER:")
+        pprint(data)
         print()
-
-        query = self._build_query(data)
 
         llm_chat = PromptLayerChatOpenAI(
             user=data["user_uuid"],
             temperature=0,
             pl_tags=[f"ff{data['fulfillment_id']}"],
         )
-        chain = load_qa_chain(llm_chat, chain_type=self.chain_type)
-        docs = await self.vector_store.asimilarity_search(query, k=4)
-        llm_response = await chain.arun(
-            input_documents=docs,
-            question=query,
-            stop=[
-                "\n\nUSER:",
-                "\n\nASSISTANT:",
-            ],
+        qna = ConversationalRetrievalChain.from_llm(
+            llm_chat,
+            self.vector_store.as_retriever(),
+            chain_type="map_refine",
         )
 
-        source_set = {f"\n- [{doc.metadata['path']}]({doc.metadata['source']})" for doc in docs}
-        final_response_parts = [llm_response, "\n\nPOSSIBLE SOURCES:", *sorted(source_set)]
-        final_response = "".join(final_response_parts)
+        chat_history = _build_chat_history_for_qna(data["message_history"])
+        result = qna({"question": data["message"]["content"], "chat_history": chat_history})
 
-        print("ASSISTANT:", final_response)
+        print("ASSISTANT:")
+        pprint(result)
         print()
         await bot.send_message(
-            text=final_response,
+            text=result["answer"],
             parse_mode="Markdown",
-            disable_web_page_preview=True,
         )
-
-    @staticmethod
-    def _build_query(data: dict[str, Any]) -> str:
-        query_parts = []
-        for msg in itertools.chain(data["message_history"], (data["message"],)):
-            query_parts.append(msg["role"].upper())
-            query_parts.append(": ")
-            query_parts.append(msg["content"])
-            query_parts.append("\n\n")
-        query_parts.append("ASSISTANT:")
-        return "".join(query_parts)
 
     @staticmethod
     def build_embeddings() -> Embeddings:
@@ -184,11 +165,6 @@ def repo_to_faiss(
     print("================================================================================")
     print()
 
-    # for text in texts:
-    #     print(text)
-    #     print()
-    #     print("================================================================================")
-    #     print()
     print()
     print(len(filepaths), "FILES")
     print(len(documents), "SNIPPETS")
@@ -238,3 +214,42 @@ def _is_text_file(file_path: str | Path):
     file_mime = magic.from_file(file_path, mime=True)
     # TODO is this an exhaustive list of mime types that we want to index ?
     return file_mime.startswith("text/") or file_mime.startswith("application/json")
+
+
+def _build_chat_history_for_qna(message_history: list[dict[str, str]]) -> list[tuple[str, str]]:
+    """
+    Build chat history for QA chain. Converts ChatGPT-like message history to the following format:
+    [
+        ("user message 1", "assistant message 1"),
+        ("user message 2", "assistant message 2"),
+        ...
+    ]
+    """
+    if not message_history:
+        return []
+
+    message_history = message_history[:]
+    chat_history_for_qna = []
+
+    user_messages = []
+    assistant_messages = []
+
+    if message_history[0]["role"] != "user":
+        message_history.insert(0, {"role": "user", "content": ""})
+    if message_history[-1]["role"] != "assistant":
+        message_history.append({"role": "assistant", "content": ""})
+
+    for message in message_history:
+        if message["role"] == "user":
+            if assistant_messages:
+                chat_history_for_qna.append(("\n\n".join(user_messages), "\n\n".join(assistant_messages)))
+                user_messages = []
+                assistant_messages = []
+            user_messages.append(message["content"])
+        else:
+            assistant_messages.append(message["content"])
+
+    if user_messages and assistant_messages:
+        chat_history_for_qna.append(("\n\n".join(user_messages), "\n\n".join(assistant_messages)))
+
+    return chat_history_for_qna
