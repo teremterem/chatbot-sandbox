@@ -98,8 +98,8 @@ class SwipyRefineDocumentsChain(RefineDocumentsChain):
         refine_steps = [res]
         for doc in docs[1:]:
             base_inputs = self._construct_refine_inputs(doc, res)
-            await self._report_doc_processing(doc)  # modification
             inputs = {**base_inputs, **kwargs}
+            await self._report_doc_processing(doc)  # modification
             res = await self.refine_llm_chain.apredict(**inputs)
             refine_steps.append(res)
         return self._construct_result(refine_steps, res)

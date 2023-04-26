@@ -14,7 +14,7 @@ from langchain import FAISS
 from langchain.chat_models import PromptLayerChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.embeddings.base import Embeddings
-from langchain.schema import Document
+from langchain.schema import Document, BaseMessage, ChatMessage
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import VectorStore
 from pathspec import pathspec
@@ -54,7 +54,7 @@ class TalkToDocBot:
             verbose=True,
         )
 
-        chat_history = _build_chat_history_for_qna(data["message_history"])
+        chat_history = _openai_msg_history_to_langchain(data["message_history"])
         result = await qna.acall({"question": data["message"]["content"], "chat_history": chat_history})
 
         print("ASSISTANT:")
@@ -217,40 +217,6 @@ def _is_text_file(file_path: str | Path):
     return file_mime.startswith("text/") or file_mime.startswith("application/json")
 
 
-def _build_chat_history_for_qna(message_history: list[dict[str, str]]) -> list[tuple[str, str]]:
-    """
-    Build chat history for QA chain. Converts ChatGPT-like message history to the following format:
-    [
-        ("user message 1", "assistant message 1"),
-        ("user message 2", "assistant message 2"),
-        ...
-    ]
-    """
-    if not message_history:
-        return []
-
-    message_history = message_history[:]
-    chat_history_for_qna = []
-
-    user_messages = []
-    assistant_messages = []
-
-    if message_history[0]["role"] != "user":
-        message_history.insert(0, {"role": "user", "content": ""})
-    if message_history[-1]["role"] != "assistant":
-        message_history.append({"role": "assistant", "content": ""})
-
-    for message in message_history:
-        if message["role"] == "user":
-            if assistant_messages:
-                chat_history_for_qna.append(("\n\n".join(user_messages), "\n\n".join(assistant_messages)))
-                user_messages = []
-                assistant_messages = []
-            user_messages.append(message["content"])
-        else:
-            assistant_messages.append(message["content"])
-
-    if user_messages and assistant_messages:
-        chat_history_for_qna.append(("\n\n".join(user_messages), "\n\n".join(assistant_messages)))
-
-    return chat_history_for_qna
+def _openai_msg_history_to_langchain(message_history: list[dict[str, str]]) -> list[BaseMessage]:
+    """Convert OpenAI's message history format to LangChain's format."""
+    return [ChatMessage(role=message["role"], content=message["content"]) for message in message_history]
