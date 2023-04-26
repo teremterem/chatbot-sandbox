@@ -50,7 +50,7 @@ class TalkToDocBot:
         qna = ConversationalRetrievalChain.from_llm(
             llm_chat,
             self.vector_store.as_retriever(),
-            chain_type="map_refine",
+            chain_type="refine",
         )
 
         chat_history = _build_chat_history_for_qna(data["message_history"])
