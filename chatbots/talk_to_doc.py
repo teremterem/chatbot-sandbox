@@ -69,7 +69,7 @@ class TalkToDocBot:
         print()
         await bot.send_message(
             text=result["answer"],
-            parse_mode="Markdown",
+            # parse_mode="Markdown",
         )
 
     @staticmethod
