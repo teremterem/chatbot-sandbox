@@ -29,7 +29,7 @@ FulfillmentHandler = Callable[["SwipyBot", dict[str, Any]], Awaitable[None]]
 class SwipyBot:
     """A Swipy Platform client."""
 
-    def __init__(self, swipy_bot_token: str, swipy_experiment_name: str = "Default") -> None:
+    def __init__(self, swipy_bot_token: str, swipy_experiment_name: str = "default") -> None:
         self.swipy_bot_token = swipy_bot_token
         self.swipy_experiment_name = swipy_experiment_name
 
