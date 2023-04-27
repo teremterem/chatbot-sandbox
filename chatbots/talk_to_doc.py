@@ -28,21 +28,13 @@ class TalkToDocBot:
 
     def __init__(
         self,
-        swipy_bot_token: str,
         vector_store: VectorStore,
         pretty_path_prefix: str = "",
     ) -> None:
-        self.swipy_bot_token = swipy_bot_token
         self.vector_store = vector_store
         self.pretty_path_prefix = pretty_path_prefix
 
-    async def run_fulfillment_client(self):
-        """Connect to Swipy Platform and listen for fulfillment requests."""
-        print("BOT STARTED")
-        print()
-        await SwipyBot(self.swipy_bot_token).run_fulfillment_client(self._fulfillment_handler)
-
-    async def _fulfillment_handler(self, bot: SwipyBot, data: dict[str, Any]) -> None:
+    async def refine_fulfillment_handler(self, bot: SwipyBot, data: dict[str, Any]) -> None:
         """Handle fulfillment requests from Swipy Platform."""
         print("USER:")
         pprint(data)
@@ -83,7 +75,6 @@ class FaissBot(TalkToDocBot):
 
     def __init__(
         self,
-        swipy_bot_token: str,
         faiss_folder_path: str | Path,
         pretty_path_prefix: str = "",
     ) -> None:
@@ -91,7 +82,6 @@ class FaissBot(TalkToDocBot):
         faiss = FAISS.load_local(faiss_folder_path, embeddings)
 
         super().__init__(
-            swipy_bot_token=swipy_bot_token,
             vector_store=faiss,
             pretty_path_prefix=pretty_path_prefix,
         )

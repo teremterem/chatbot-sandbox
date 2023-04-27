@@ -7,6 +7,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from swipy_client import SwipyBot
+
 load_dotenv()
 
 REPO_PATH = Path(__file__).parents[1]
@@ -21,29 +23,38 @@ from chatbots.talk_to_doc import FaissBot
 
 async def main() -> None:
     """Run the chatbot sandbox."""
-    await asyncio.gather(
-        asyncio.create_task(
-            FaissBot(
-                os.environ["ANTI_SWIPY_BOT_TOKEN"],
-                REPO_PATH / "data" / "faiss" / "this_repo",
-                pretty_path_prefix="chatbot-sandbox/",
-            ).run_fulfillment_client()
-        ),
-        asyncio.create_task(
-            FaissBot(
-                os.environ["LANGCHAIN_DOC_BOT_TOKEN"],
-                REPO_PATH / "data" / "faiss" / "langchain_docs",
-                pretty_path_prefix="langchain/docs/",
-            ).run_fulfillment_client()
-        ),
-        asyncio.create_task(
-            FaissBot(
-                os.environ["LANGCHAIN_BOT_TOKEN"],
-                REPO_PATH / "data" / "faiss" / "langchain",
-                pretty_path_prefix="langchain/",
-            ).run_fulfillment_client()
-        ),
+
+    langchain_src_bot = FaissBot(
+        REPO_PATH / "data" / "faiss" / "langchain",
+        pretty_path_prefix="langchain/",
     )
+    langchain_doc_bot = FaissBot(
+        REPO_PATH / "data" / "faiss" / "langchain_docs",
+        pretty_path_prefix="langchain/docs/",
+    )
+    this_repo_bot = FaissBot(
+        REPO_PATH / "data" / "faiss" / "this_repo",
+        pretty_path_prefix="chatbot-sandbox/",
+    )
+
+    fulfillment_tasks = [
+        asyncio.create_task(
+            SwipyBot(os.environ["LANGCHAIN_SRC_BOT_TOKEN"]).run_fulfillment_client(
+                langchain_src_bot.refine_fulfillment_handler
+            )
+        ),
+        asyncio.create_task(
+            SwipyBot(os.environ["LANGCHAIN_DOC_BOT_TOKEN"]).run_fulfillment_client(
+                langchain_doc_bot.refine_fulfillment_handler
+            )
+        ),
+        asyncio.create_task(
+            SwipyBot(os.environ["ANTI_SWIPY_BOT_TOKEN"]).run_fulfillment_client(
+                this_repo_bot.refine_fulfillment_handler
+            )
+        ),
+    ]
+    await asyncio.gather(*fulfillment_tasks)
 
 
 if __name__ == "__main__":

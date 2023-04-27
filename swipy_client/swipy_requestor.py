@@ -29,8 +29,9 @@ FulfillmentHandler = Callable[["SwipyBot", dict[str, Any]], Awaitable[None]]
 class SwipyBot:
     """A Swipy Platform client."""
 
-    def __init__(self, swipy_bot_token: str) -> None:
+    def __init__(self, swipy_bot_token: str, swipy_experiment_name: str = "Default") -> None:
         self.swipy_bot_token = swipy_bot_token
+        self.swipy_experiment_name = swipy_experiment_name
 
     async def run_fulfillment_client(self, fulfillment_handler: FulfillmentHandler) -> None:
         """Connect to Swipy Platform and listen for fulfillment requests."""
@@ -41,7 +42,10 @@ class SwipyBot:
             try:
                 async with connect(
                     f"{swipy_platform_ws_uri}/fulfillment_websocket/",
-                    extra_headers={"X-Swipy-Bot-Token": self.swipy_bot_token},
+                    extra_headers={
+                        "X-Swipy-Bot-Token": self.swipy_bot_token,
+                        "X-Swipy-Experiment-Name": self.swipy_experiment_name,
+                    },
                 ) as websocket:
                     while True:
                         data_str = await websocket.recv()
