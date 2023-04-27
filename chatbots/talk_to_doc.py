@@ -47,7 +47,7 @@ class TalkToDocBot:
         )
         qna = load_swipy_conv_retrieval_chain(
             llm_chat,
-            self.vector_store.as_retriever(search_kwargs={"k": 3}),
+            self.vector_store.as_retriever(search_kwargs={"k": 1}),
             bot,
             pretty_path_prefix=self.pretty_path_prefix,
             verbose=True,
