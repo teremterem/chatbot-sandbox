@@ -228,12 +228,12 @@ def _openai_msg_history_to_langchain(message_history: list[dict[str, str]]) -> l
     langchain_history = []
     for message in message_history:
         if message["role"] == "user":
-            langchain_history.append(HumanMessage(content=message["text"]))
+            langchain_history.append(HumanMessage(content=message["content"]))
         elif message["role"] == "assistant":
-            langchain_history.append(AIMessage(content=message["text"]))
+            langchain_history.append(AIMessage(content=message["content"]))
         elif message["role"] == "system":
-            langchain_history.append(SystemMessage(content=message["text"]))
+            langchain_history.append(SystemMessage(content=message["content"]))
         else:
-            langchain_history.append(ChatMessage(role=message["role"], content=message["text"]))
+            langchain_history.append(ChatMessage(role=message["role"], content=message["content"]))
 
     return langchain_history
