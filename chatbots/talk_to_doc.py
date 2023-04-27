@@ -113,6 +113,8 @@ def repo_to_faiss(
     repo_path: str | Path,
     additional_gitignore_content: str = "",
     source_url_base: str = None,
+    chunk_size: int = 1000,
+    chunk_overlap: int = 200,
 ) -> FAISS:
     """Ingest a git repository and return a FAISS instance."""
     # pylint: disable=too-many-locals
@@ -130,8 +132,8 @@ def repo_to_faiss(
     filepaths = _list_files_in_repo(repo_path, additional_gitignore_content)
     text_splitter = CharacterTextSplitter(
         separator="\n",
-        chunk_size=2000,
-        chunk_overlap=400,
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
         length_function=len,
     )
     documents: list[Document] = []
