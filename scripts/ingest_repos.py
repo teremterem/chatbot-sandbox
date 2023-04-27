@@ -15,33 +15,46 @@ from chatbots.talk_to_doc import repo_to_faiss
 LANGCHAIN_VERSION = "v0.0.151"
 
 
-def main() -> None:
-    """Ingest the repos into FAISS and save FAISS indices to disk."""
+def _ingest_repos(subfolder: str, chunk_size: int, chunk_overlap: int) -> None:
     repo_to_faiss(
         REPO_PATH,
         source_url_base="https://github.com/teremterem/chatbot-sandbox/blob/main/",
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
     ).save_local(
-        str(REPO_PATH / "data" / "inbox" / "faiss" / "this_repo"),
+        str(REPO_PATH / "data" / "inbox" / "faiss" / subfolder / "this_repo"),
     )
     repo_to_faiss(
         REPO_PATH / ".." / "langchain" / "docs",
         source_url_base=f"https://github.com/hwchase17/langchain/blob/{LANGCHAIN_VERSION}/docs/",
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
     ).save_local(
-        str(REPO_PATH / "data" / "inbox" / "faiss" / "langchain_docs"),
+        str(REPO_PATH / "data" / "inbox" / "faiss" / subfolder / "langchain_docs"),
     )
     repo_to_faiss(
-        REPO_PATH / ".." / "langchain",
-        source_url_base=f"https://github.com/hwchase17/langchain/blob/{LANGCHAIN_VERSION}/",
+        REPO_PATH / ".." / "langchain" / "tests",
+        source_url_base=f"https://github.com/hwchase17/langchain/blob/{LANGCHAIN_VERSION}/tests/",
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
     ).save_local(
-        str(REPO_PATH / "data" / "inbox" / "faiss" / "langchain_tests"),
+        str(REPO_PATH / "data" / "inbox" / "faiss" / subfolder / "langchain_tests"),
     )
     repo_to_faiss(
         REPO_PATH / ".." / "langchain",
         additional_gitignore_content="docs/\ntests/",
         source_url_base=f"https://github.com/hwchase17/langchain/blob/{LANGCHAIN_VERSION}/",
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
     ).save_local(
-        str(REPO_PATH / "data" / "inbox" / "faiss" / "langchain_src"),
+        str(REPO_PATH / "data" / "inbox" / "faiss" / subfolder / "langchain_src"),
     )
+
+
+def main() -> None:
+    """Ingest the repos into FAISS and save FAISS indices to disk."""
+    _ingest_repos("1000-200", chunk_size=1000, chunk_overlap=200)
+    _ingest_repos("2000-400", chunk_size=2000, chunk_overlap=400)
 
 
 if __name__ == "__main__":
