@@ -83,7 +83,10 @@ class SwipyBot:
         except Exception as exc:
             logger.exception(exc)
             try:
-                await self.send_message(text=f"⚠️ Oops, something went wrong ⚠️\n\n{exc}")
+                await self.send_message(
+                    text=f"⚠️ Oops, something went wrong ⚠️\n\n{exc}",
+                    is_visible_to_bot=False,
+                )
             except Exception as exc2:
                 # TODO do we even need to log this ? it may confuse what was the original error
                 logger.warning("FAILED TO REPORT ERROR TO THE USER", exc_info=exc2)
