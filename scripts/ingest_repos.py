@@ -12,6 +12,8 @@ sys.path.append(str(REPO_PATH))
 
 from chatbots.talk_to_doc import repo_to_faiss
 
+LANGCHAIN_VERSION = "v0.0.151"
+
 
 def main() -> None:
     """Ingest the repos into FAISS and save FAISS indices to disk."""
@@ -23,20 +25,20 @@ def main() -> None:
     )
     repo_to_faiss(
         REPO_PATH / ".." / "langchain" / "docs",
-        source_url_base="https://github.com/hwchase17/langchain/blob/v0.0.150/docs/",
+        source_url_base=f"https://github.com/hwchase17/langchain/blob/{LANGCHAIN_VERSION}/docs/",
     ).save_local(
         str(REPO_PATH / "data" / "inbox" / "faiss" / "langchain_docs"),
     )
     repo_to_faiss(
         REPO_PATH / ".." / "langchain",
-        source_url_base="https://github.com/hwchase17/langchain/blob/v0.0.150/",
+        source_url_base=f"https://github.com/hwchase17/langchain/blob/{LANGCHAIN_VERSION}/",
     ).save_local(
         str(REPO_PATH / "data" / "inbox" / "faiss" / "langchain_tests"),
     )
     repo_to_faiss(
         REPO_PATH / ".." / "langchain",
         additional_gitignore_content="docs/\ntests/",
-        source_url_base="https://github.com/hwchase17/langchain/blob/v0.0.150/",
+        source_url_base=f"https://github.com/hwchase17/langchain/blob/{LANGCHAIN_VERSION}/",
     ).save_local(
         str(REPO_PATH / "data" / "inbox" / "faiss" / "langchain_src"),
     )
