@@ -53,6 +53,7 @@ async def main() -> None:
             )
         ),
     ]
+    print()
     await asyncio.gather(*fulfillment_tasks)
 
 
