@@ -14,7 +14,7 @@ from langchain import FAISS
 from langchain.chat_models import PromptLayerChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.embeddings.base import Embeddings
-from langchain.schema import Document, BaseMessage, ChatMessage
+from langchain.schema import Document, BaseMessage, ChatMessage, HumanMessage, AIMessage, SystemMessage
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import VectorStore
 from pathspec import pathspec
@@ -225,4 +225,15 @@ def _is_text_file(file_path: str | Path):
 
 def _openai_msg_history_to_langchain(message_history: list[dict[str, str]]) -> list[BaseMessage]:
     """Convert OpenAI's message history format to LangChain's format."""
-    return [ChatMessage(role=message["role"], content=message["content"]) for message in message_history]
+    langchain_history = []
+    for message in message_history:
+        if message["role"] == "user":
+            langchain_history.append(HumanMessage(content=message["text"]))
+        elif message["role"] == "assistant":
+            langchain_history.append(AIMessage(content=message["text"]))
+        elif message["role"] == "system":
+            langchain_history.append(SystemMessage(content=message["text"]))
+        else:
+            langchain_history.append(ChatMessage(role=message["role"], content=message["text"]))
+
+    return langchain_history
