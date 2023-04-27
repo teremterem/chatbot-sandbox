@@ -114,6 +114,7 @@ class SwipyRefineDocumentsChain(RefineDocumentsChain):
         await self.swipy_bot.send_message(
             text=f"_Looking at_ [{self.pretty_path_prefix}{doc.metadata['path']}]({doc.metadata['source']})",
             parse_mode="Markdown",
+            disable_notification=True,
             disable_web_page_preview=True,
             is_visible_to_bot=False,
             keep_typing=True,

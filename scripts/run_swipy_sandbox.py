@@ -52,6 +52,11 @@ async def main() -> None:
                 this_repo_bot.refine_fulfillment_handler
             )
         ),
+        asyncio.create_task(
+            SwipyBot(os.environ["ANTI_SWIPY_BOT_TOKEN"], swipy_experiment_name="an-experiment").run_fulfillment_client(
+                this_repo_bot.refine_fulfillment_handler
+            )
+        ),
     ]
     print()
     await asyncio.gather(*fulfillment_tasks)
