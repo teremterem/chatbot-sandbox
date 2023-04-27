@@ -111,10 +111,10 @@ def pdf_to_faiss(pdf_path: str | Path) -> FAISS:
 
 def repo_to_faiss(
     repo_path: str | Path,
+    chunk_size: int,
+    chunk_overlap: int,
     additional_gitignore_content: str = "",
     source_url_base: str = None,
-    chunk_size: int = 1000,
-    chunk_overlap: int = 200,
 ) -> FAISS:
     """Ingest a git repository and return a FAISS instance."""
     # pylint: disable=too-many-locals
