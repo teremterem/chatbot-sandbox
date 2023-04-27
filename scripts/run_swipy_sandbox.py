@@ -7,8 +7,6 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from swipy_client import SwipyBot
-
 load_dotenv()
 
 REPO_PATH = Path(__file__).parents[1]
@@ -19,6 +17,7 @@ sys.path.append(str(REPO_PATH))
 # patch_openai()
 
 from chatbots.talk_to_doc import FaissBot
+from swipy_client import SwipyBot
 
 
 async def main() -> None:

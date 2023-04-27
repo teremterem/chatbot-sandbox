@@ -47,13 +47,15 @@ class SwipyBot:
                         "X-Swipy-Experiment-Name": self.swipy_experiment_name,
                     },
                 ) as websocket:
+                    print(f"SWIPY BOT ONLINE ({self.swipy_experiment_name})")
+                    print()
                     while True:
                         data_str = await websocket.recv()
                         data = json.loads(data_str)
                         asyncio.create_task(self._fulfillment_handler_wrapper(fulfillment_handler, data))
             except ConnectionClosedError:
                 if time.time() - attempt_time > 120:
-                    # if more than 2 minutes passed since the last attempt_time, then reset attempt to 1
+                    # if more than 2 minutes passed since the last attempt_time, then reset the attempt to 1
                     attempt = 1
 
                 sleep_time = 2**attempt
