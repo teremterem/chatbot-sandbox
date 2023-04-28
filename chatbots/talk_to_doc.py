@@ -94,7 +94,7 @@ def pdf_to_faiss(pdf_path: str | Path) -> FAISS:
         print("    LENGTH:", len(text), "CHARS")
         print()
 
-    embeddings = get_embeddings
+    embeddings = get_embeddings()
     return FAISS.from_texts(texts, embeddings)
 
 
@@ -169,7 +169,7 @@ def repo_to_faiss(
     print()
     print("INDEXING...")
 
-    embeddings = get_embeddings
+    embeddings = get_embeddings()
     faiss = FAISS.from_documents(documents, embeddings)
 
     print("DONE")
