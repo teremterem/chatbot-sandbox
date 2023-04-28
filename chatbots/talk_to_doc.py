@@ -1,7 +1,4 @@
-"""
-This chatbot is based on materials from the following video by Prompt Engineering YouTube channel
-(checkout video description for more links): https://www.youtube.com/watch?v=TLf90ipMzfE
-"""
+"""A chatbot that answers questions about a repo, a PDF document etc."""
 import os
 from pathlib import Path
 from pprint import pprint
@@ -24,14 +21,18 @@ from swipy_client import SwipyBot
 
 
 class TalkToDocBot:
-    """A chatbot that answers questions about a PDF document."""
+    """A chatbot that answers questions about a repo, a PDF document etc."""
 
     def __init__(
         self,
+        swipy_bot: SwipyBot,
         vector_store: VectorStore,
+        use_gpt4: bool = False,
         pretty_path_prefix: str = "",
     ) -> None:
+        self.swipy_bot = swipy_bot
         self.vector_store = vector_store
+        self.use_gpt4 = use_gpt4
         self.pretty_path_prefix = pretty_path_prefix
 
     async def refine_fulfillment_handler(self, bot: SwipyBot, data: dict[str, Any]) -> None:
@@ -41,16 +42,17 @@ class TalkToDocBot:
         print()
 
         llm_chat = PromptLayerChatOpenAI(
-            user=data["user_uuid"],
+            model_name="gpt-4" if self.use_gpt4 else "gpt-3.5-turbo",
             temperature=0,
+            user=data["user_uuid"],
             pl_tags=[f"ff{data['fulfillment_id']}"],
         )
         qna = load_swipy_conv_retrieval_chain(
             llm_chat,
-            self.vector_store.as_retriever(search_kwargs={"k": 1}),
+            self.vector_store.as_retriever(search_kwargs={"k": 4}),
             bot,
             pretty_path_prefix=self.pretty_path_prefix,
-            verbose=True,
+            verbose=False,
         )
 
         chat_history = _openai_msg_history_to_langchain(data["message_history"])
@@ -64,27 +66,14 @@ class TalkToDocBot:
             # parse_mode="Markdown",
         )
 
-    @staticmethod
-    def build_embeddings() -> Embeddings:
-        """Build LangChain's Embeddings object."""
-        return OpenAIEmbeddings(allowed_special="all")
+    async def run_fulfillment_client(self) -> None:
+        """Run the fulfillment client."""
+        await self.swipy_bot.run_fulfillment_client(self.refine_fulfillment_handler)
 
 
-class FaissBot(TalkToDocBot):
-    """A chatbot that answers questions using a FAISS index that was saved locally."""
-
-    def __init__(
-        self,
-        faiss_folder_path: str | Path,
-        pretty_path_prefix: str = "",
-    ) -> None:
-        embeddings = self.build_embeddings()
-        faiss = FAISS.load_local(faiss_folder_path, embeddings)
-
-        super().__init__(
-            vector_store=faiss,
-            pretty_path_prefix=pretty_path_prefix,
-        )
+def get_embeddings() -> Embeddings:
+    """Build LangChain's Embeddings object."""
+    return OpenAIEmbeddings(allowed_special="all")
 
 
 def pdf_to_faiss(pdf_path: str | Path) -> FAISS:
@@ -105,7 +94,7 @@ def pdf_to_faiss(pdf_path: str | Path) -> FAISS:
         print("    LENGTH:", len(text), "CHARS")
         print()
 
-    embeddings = FaissBot.build_embeddings()
+    embeddings = get_embeddings
     return FAISS.from_texts(texts, embeddings)
 
 
@@ -180,7 +169,7 @@ def repo_to_faiss(
     print()
     print("INDEXING...")
 
-    embeddings = FaissBot.build_embeddings()
+    embeddings = get_embeddings
     faiss = FAISS.from_documents(documents, embeddings)
 
     print("DONE")
