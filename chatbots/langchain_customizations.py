@@ -4,44 +4,11 @@ from typing import Any
 
 from langchain import BasePromptTemplate, LLMChain
 from langchain.callbacks import BaseCallbackManager
-from langchain.chains import ConversationalRetrievalChain
 from langchain.chains.combine_documents.refine import RefineDocumentsChain
-from langchain.chains.conversational_retrieval.prompts import CONDENSE_QUESTION_PROMPT
 from langchain.chains.question_answering import refine_prompts
-from langchain.schema import Document, BaseLanguageModel, BaseRetriever
+from langchain.schema import Document, BaseLanguageModel
 
 from swipy_client import SwipyBot
-
-
-def load_swipy_conv_retrieval_chain(
-    llm: BaseLanguageModel,
-    retriever: BaseRetriever,
-    swipy_bot: SwipyBot,
-    pretty_path_prefix: str = "",
-    condense_question_prompt: BasePromptTemplate = CONDENSE_QUESTION_PROMPT,
-    verbose: bool = False,
-    combine_docs_chain_kwargs: dict = None,
-    **kwargs: Any,
-) -> ConversationalRetrievalChain:
-    """
-    A modification of:
-    langchain/chains/conversational_retrieval/base.py::ConversationalRetrievalChain.from_llm()
-    """
-    combine_docs_chain_kwargs = combine_docs_chain_kwargs or {}
-    doc_chain = load_swipy_refine_chain(
-        llm,
-        swipy_bot,
-        pretty_path_prefix=pretty_path_prefix,
-        verbose=verbose,
-        **combine_docs_chain_kwargs,
-    )
-    condense_question_chain = LLMChain(llm=llm, prompt=condense_question_prompt, verbose=verbose)
-    return ConversationalRetrievalChain(
-        retriever=retriever,
-        combine_docs_chain=doc_chain,
-        question_generator=condense_question_chain,
-        **kwargs,
-    )
 
 
 def load_swipy_refine_chain(

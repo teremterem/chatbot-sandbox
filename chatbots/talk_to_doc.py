@@ -7,7 +7,10 @@ from typing import Any
 import chardet
 import magic
 from PyPDF2 import PdfReader
-from langchain import FAISS
+from langchain import FAISS, LLMChain
+from langchain.chains import ConversationalRetrievalChain
+from langchain.chains.conversational_retrieval.prompts import CONDENSE_QUESTION_PROMPT
+from langchain.chains.question_answering import _load_stuff_chain
 from langchain.chat_models import PromptLayerChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.embeddings.base import Embeddings
@@ -16,7 +19,7 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import VectorStore
 from pathspec import pathspec
 
-from chatbots.langchain_customizations import load_swipy_conv_retrieval_chain
+from chatbots.langchain_customizations import load_swipy_refine_chain
 from swipy_client import SwipyBot
 
 
@@ -37,6 +40,7 @@ class TalkToDocBot:
 
     async def refine_fulfillment_handler(self, bot: SwipyBot, data: dict[str, Any]) -> None:
         """Handle fulfillment requests from Swipy Platform."""
+        # TODO we have both, self.swipy_bot and bot, which is confusing... bad design ?
         print("USER:")
         pprint(data)
         print()
@@ -47,12 +51,49 @@ class TalkToDocBot:
             user=data["user_uuid"],
             pl_tags=[f"ff{data['fulfillment_id']}"],
         )
-        qna = load_swipy_conv_retrieval_chain(
+        doc_chain = load_swipy_refine_chain(
             llm_chat,
-            self.vector_store.as_retriever(search_kwargs={"k": 4}),
             bot,
             pretty_path_prefix=self.pretty_path_prefix,
             verbose=False,
+        )
+        condense_question_chain = LLMChain(llm=llm_chat, prompt=CONDENSE_QUESTION_PROMPT, verbose=False)
+        qna = ConversationalRetrievalChain(
+            retriever=self.vector_store.as_retriever(search_kwargs={"k": 4}),
+            combine_docs_chain=doc_chain,
+            question_generator=condense_question_chain,
+        )
+
+        chat_history = _openai_msg_history_to_langchain(data["message_history"])
+        result = await qna.acall({"question": data["message"]["content"], "chat_history": chat_history})
+
+        print("ASSISTANT:")
+        pprint(result)
+        print()
+        await bot.send_message(
+            text=result["answer"],
+            # parse_mode="Markdown",
+        )
+
+    async def stuff_fulfillment_handler(self, bot: SwipyBot, data: dict[str, Any]) -> None:
+        """Handle fulfillment requests from Swipy Platform."""
+        # TODO we have both, self.swipy_bot and bot, which is confusing... bad design ?
+        print("USER:")
+        pprint(data)
+        print()
+
+        llm_chat = PromptLayerChatOpenAI(
+            model_name="gpt-4" if self.use_gpt4 else "gpt-3.5-turbo",
+            temperature=0,
+            user=data["user_uuid"],
+            pl_tags=[f"ff{data['fulfillment_id']}"],
+        )
+        doc_chain = _load_stuff_chain(llm_chat, verbose=False)
+        condense_question_chain = LLMChain(llm=llm_chat, prompt=CONDENSE_QUESTION_PROMPT, verbose=False)
+        qna = ConversationalRetrievalChain(
+            retriever=self.vector_store.as_retriever(search_kwargs={"k": 4}),
+            combine_docs_chain=doc_chain,
+            question_generator=condense_question_chain,
         )
 
         chat_history = _openai_msg_history_to_langchain(data["message_history"])
@@ -68,7 +109,9 @@ class TalkToDocBot:
 
     async def run_fulfillment_client(self) -> None:
         """Run the fulfillment client."""
-        await self.swipy_bot.run_fulfillment_client(self.refine_fulfillment_handler)
+        # TODO get rid of copy-paste in the two fulfillment handlers
+        # await self.swipy_bot.run_fulfillment_client(self.refine_fulfillment_handler)
+        await self.swipy_bot.run_fulfillment_client(self.stuff_fulfillment_handler)
 
 
 def get_embeddings() -> Embeddings:
