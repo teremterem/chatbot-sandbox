@@ -46,13 +46,13 @@ def create_langchain_experiments(exp_name_suffix: str, faiss_subfolder: str) -> 
             pretty_path_prefix="langchain/",
         )
         langchain_test_bot = TalkToDocBot(
-            SwipyBot(os.environ["LANGCHAIN_TEST_BOT_TOKEN"], experiment_name=f"lc_test_{_exp_name_suffix}"),
+            SwipyBot(os.environ["LANGCHAIN_SRC_BOT_TOKEN"], experiment_name=f"lc_test_{_exp_name_suffix}"),
             langchain_test_faiss,
             use_gpt4=use_gpt4,
             pretty_path_prefix="langchain/tests/",
         )
         langchain_doc_bot = TalkToDocBot(
-            SwipyBot(os.environ["LANGCHAIN_DOC_BOT_TOKEN"], experiment_name=f"lc_doc_{_exp_name_suffix}"),
+            SwipyBot(os.environ["LANGCHAIN_SRC_BOT_TOKEN"], experiment_name=f"lc_doc_{_exp_name_suffix}"),
             langchain_doc_faiss,
             use_gpt4=use_gpt4,
             pretty_path_prefix="langchain/docs/",
