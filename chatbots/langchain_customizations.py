@@ -4,6 +4,7 @@ from typing import Any
 
 from langchain import BasePromptTemplate, LLMChain
 from langchain.callbacks import BaseCallbackManager
+from langchain.callbacks.base import AsyncCallbackHandler
 from langchain.chains.combine_documents.refine import RefineDocumentsChain
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
 from langchain.chains.question_answering import refine_prompts, stuff_prompt
@@ -106,7 +107,7 @@ class SwipyStuffDocumentsChain(StuffDocumentsChain):
         ]
         line_separator = "\n"
         await self.swipy_bot.send_message(
-            text=f"_Looking at:_\n{line_separator.join(doc_list)}",
+            text=f"_Looking at:_\n{line_separator.join(doc_list)}\n...",
             parse_mode="Markdown",
             disable_notification=True,
             disable_web_page_preview=True,
@@ -139,6 +140,23 @@ class SwipyRefineDocumentsChain(RefineDocumentsChain):
     async def _report_doc_processing(self, doc: Document) -> None:
         await self.swipy_bot.send_message(
             text=f"_Looking at_ [{self.pretty_path_prefix}{doc.metadata['path']}]({doc.metadata['source']})",
+            parse_mode="Markdown",
+            disable_notification=True,
+            disable_web_page_preview=True,
+            is_visible_to_bot=False,
+            keep_typing=True,
+        )
+
+
+class ThinkingCallbackHandler(AsyncCallbackHandler):
+    """A callback handler that sends a message when the bot is thinking."""
+
+    def __init__(self, swipy_bot: SwipyBot) -> None:
+        self.swipy_bot = swipy_bot
+
+    async def on_chain_start(self, serialized: dict[str, Any], inputs: dict[str, Any], **kwargs: Any) -> None:
+        await self.swipy_bot.send_message(
+            text="_Thinking_ ...",
             parse_mode="Markdown",
             disable_notification=True,
             disable_web_page_preview=True,

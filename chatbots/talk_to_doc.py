@@ -5,7 +5,6 @@ from typing import Any
 
 from langchain import LLMChain
 from langchain.callbacks import AsyncCallbackManager
-from langchain.callbacks.base import AsyncCallbackHandler
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.conversational_retrieval.prompts import CONDENSE_QUESTION_PROMPT
@@ -13,25 +12,8 @@ from langchain.chat_models import PromptLayerChatOpenAI, ChatOpenAI
 from langchain.schema import BaseMessage, ChatMessage, HumanMessage, AIMessage, SystemMessage
 from langchain.vectorstores import VectorStore
 
-from chatbots.langchain_customizations import load_swipy_refine_chain, load_swipy_stuff_chain
+from chatbots.langchain_customizations import load_swipy_refine_chain, load_swipy_stuff_chain, ThinkingCallbackHandler
 from swipy_client import SwipyBot
-
-
-class ThinkingCallbackHandler(AsyncCallbackHandler):
-    """A callback handler that sends a message when the bot is thinking."""
-
-    def __init__(self, swipy_bot: SwipyBot) -> None:
-        self.swipy_bot = swipy_bot
-
-    async def on_llm_start(self, serialized: dict[str, Any], prompts: list[str], **kwargs: Any) -> Any:
-        await self.swipy_bot.send_message(
-            text="_Thinking..._",
-            parse_mode="Markdown",
-            disable_notification=True,
-            disable_web_page_preview=True,
-            is_visible_to_bot=False,
-            keep_typing=True,
-        )
 
 
 class ConvRetrievalBot(ABC):
@@ -58,7 +40,7 @@ class ConvRetrievalBot(ABC):
         condense_question_chain = LLMChain(
             llm=chat_llm,
             prompt=CONDENSE_QUESTION_PROMPT,
-            verbose=False,
+            verbose=True,
             callback_manager=AsyncCallbackManager([ThinkingCallbackHandler(self.swipy_bot)]),
         )
         qna = ConversationalRetrievalChain(
