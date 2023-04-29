@@ -1,12 +1,14 @@
-"""Customizations to the langchain library for Swipy."""
+"""Customizations to the LangChain library for Swipy."""
 # pylint: disable=too-many-arguments
 from typing import Any
 
 from langchain import BasePromptTemplate, LLMChain
 from langchain.callbacks import BaseCallbackManager
 from langchain.callbacks.base import AsyncCallbackHandler
+from langchain.chains import ConversationalRetrievalChain
 from langchain.chains.combine_documents.refine import RefineDocumentsChain
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
+from langchain.chains.conversational_retrieval.base import _get_chat_history
 from langchain.chains.question_answering import refine_prompts, stuff_prompt
 from langchain.schema import Document, BaseLanguageModel
 
@@ -146,6 +148,40 @@ class SwipyRefineDocumentsChain(RefineDocumentsChain):
             is_visible_to_bot=False,
             keep_typing=True,
         )
+
+
+class SwipyConversationalRetrievalChain(ConversationalRetrievalChain):
+    """
+    Chain for chatting with an index. Unlike the original version, this one uses the whole chat history to answer,
+    and not just the "summarized" question (the "summarized" question is used only for doc retrieval).
+    """
+
+    swipy_bot: SwipyBot
+
+    async def _acall(self, inputs: dict[str, Any]) -> dict[str, Any]:
+        question = inputs["question"]
+        get_chat_history = self.get_chat_history or _get_chat_history
+        chat_history_str = get_chat_history(inputs["chat_history"])
+        if chat_history_str:
+            new_question = await self.question_generator.arun(question=question, chat_history=chat_history_str)
+            await self.swipy_bot.send_message(  # modification
+                text=f"SEARCHING: {new_question} 🤔",
+                # parse_mode="Markdown",
+                disable_notification=True,
+                disable_web_page_preview=True,
+                is_visible_to_bot=False,
+                keep_typing=True,
+            )
+        else:
+            new_question = question
+        docs = await self._aget_docs(new_question, inputs)
+        new_inputs = inputs.copy()
+        # new_inputs["question"] = new_question  # modification: use new_question only for doc retrieval
+        new_inputs["chat_history"] = chat_history_str
+        answer = await self.combine_docs_chain.arun(input_documents=docs, **new_inputs)
+        if self.return_source_documents:
+            return {self.output_key: answer, "source_documents": docs}
+        return {self.output_key: answer}
 
 
 class ThinkingCallbackHandler(AsyncCallbackHandler):

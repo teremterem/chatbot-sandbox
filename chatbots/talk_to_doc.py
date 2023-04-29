@@ -5,14 +5,18 @@ from typing import Any
 
 from langchain import LLMChain
 from langchain.callbacks import AsyncCallbackManager
-from langchain.chains import ConversationalRetrievalChain
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.conversational_retrieval.prompts import CONDENSE_QUESTION_PROMPT
 from langchain.chat_models import PromptLayerChatOpenAI, ChatOpenAI
 from langchain.schema import BaseMessage, ChatMessage, HumanMessage, AIMessage, SystemMessage
 from langchain.vectorstores import VectorStore
 
-from chatbots.langchain_customizations import load_swipy_refine_chain, load_swipy_stuff_chain, ThinkingCallbackHandler
+from chatbots.langchain_customizations import (
+    load_swipy_refine_chain,
+    load_swipy_stuff_chain,
+    ThinkingCallbackHandler,
+    SwipyConversationalRetrievalChain,
+)
 from swipy_client import SwipyBot
 
 
@@ -43,7 +47,8 @@ class ConvRetrievalBot(ABC):
             verbose=True,
             callback_manager=AsyncCallbackManager([ThinkingCallbackHandler(self.swipy_bot)]),
         )
-        qna = ConversationalRetrievalChain(
+        qna = SwipyConversationalRetrievalChain(
+            swipy_bot=self.swipy_bot,
             retriever=self.vector_store.as_retriever(search_kwargs={"k": 4}),
             combine_docs_chain=self.load_doc_chain(chat_llm),
             question_generator=condense_question_chain,
