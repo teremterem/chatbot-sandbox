@@ -3,11 +3,14 @@ from abc import ABC, abstractmethod
 from pprint import pprint
 from typing import Any
 
+import promptlayer.prompts
 from langchain import LLMChain
 from langchain.callbacks import AsyncCallbackManager
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.conversational_retrieval.prompts import CONDENSE_QUESTION_PROMPT
+from langchain.chains.question_answering import stuff_prompt
 from langchain.chat_models import PromptLayerChatOpenAI, ChatOpenAI
+from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain.schema import BaseMessage, ChatMessage, HumanMessage, AIMessage, SystemMessage
 from langchain.vectorstores import VectorStore
 
@@ -52,6 +55,7 @@ class ConvRetrievalBot(ABC):
             retriever=self.vector_store.as_retriever(search_kwargs={"k": 4}),
             combine_docs_chain=self.load_doc_chain(chat_llm),
             question_generator=condense_question_chain,
+            get_chat_history=_get_chat_history,
         )
 
         chat_history = _openai_msg_history_to_langchain(data["message_history"])
@@ -89,10 +93,18 @@ class StuffConvRetrievalBot(ConvRetrievalBot):
     """Conversational Retrieval Bot that uses "stuff" pattern."""
 
     def load_doc_chain(self, chat_llm: ChatOpenAI) -> BaseCombineDocumentsChain:
+        # TODO download prompt from PromptLayer only once ?
+        stuff_chat_prompt = ChatPromptTemplate.from_messages(
+            [
+                SystemMessagePromptTemplate.from_template(stuff_prompt.system_template),
+                HumanMessagePromptTemplate(prompt=promptlayer.prompts.get("stuff_prompt_question", langchain=True)),
+            ]
+        )
         doc_chain = load_swipy_stuff_chain(
             chat_llm,
             self.swipy_bot,
             pretty_path_prefix=self.pretty_path_prefix,
+            prompt=stuff_chat_prompt,
             verbose=False,
         )
         return doc_chain
@@ -125,3 +137,14 @@ def _openai_msg_history_to_langchain(message_history: list[dict[str, str]]) -> l
             langchain_history.append(ChatMessage(role=message["role"], content=message["content"]))
 
     return langchain_history
+
+
+_ROLE_MAP = {"human": "HUMAN", "ai": "ASSISTANT"}
+
+
+def _get_chat_history(chat_history: list[BaseMessage]) -> str:
+    parts = []
+    for dialogue_turn in chat_history:
+        role_prefix = _ROLE_MAP.get(dialogue_turn.type, dialogue_turn.type)
+        parts.append(f"{role_prefix.upper()}: {dialogue_turn.content}")
+    return "\n\n".join(parts)
