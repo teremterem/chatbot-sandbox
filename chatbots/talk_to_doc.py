@@ -64,13 +64,17 @@ class ConvRetrievalBot(ABC):
 
     async def fulfillment_handler(self, _, data: dict[str, Any]) -> None:
         """Handle fulfillment requests from Swipy Platform."""
-        print("USER:")
+        print("HUMAN:")
         pprint(data)
         print()
 
         chat_llm = PromptLayerChatOpenAI(
             model_name="gpt-4" if self.use_gpt4 else "gpt-3.5-turbo",
             temperature=0,
+            stop=[
+                "\n\nHUMAN:",
+                "\n\nASSISTANT:",
+            ],
             user=data["user_uuid"],
             pl_tags=[f"ff{data['fulfillment_id']}"],
         )
