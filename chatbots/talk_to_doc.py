@@ -7,7 +7,6 @@ import promptlayer.prompts
 from langchain import LLMChain
 from langchain.callbacks import AsyncCallbackManager
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
-from langchain.chains.conversational_retrieval.prompts import CONDENSE_QUESTION_PROMPT
 from langchain.chains.question_answering import stuff_prompt
 from langchain.chat_models import PromptLayerChatOpenAI, ChatOpenAI
 from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
@@ -46,7 +45,8 @@ class ConvRetrievalBot(ABC):
         """Build LLM chain and run it on a message."""
         condense_question_chain = LLMChain(
             llm=chat_llm,
-            prompt=CONDENSE_QUESTION_PROMPT,
+            # TODO download prompt from PromptLayer only once ? or just hardcode the prompt when done experimenting ?
+            prompt=promptlayer.prompts.get("condense_question_prompt", langchain=True),
             verbose=True,
             callback_manager=AsyncCallbackManager([ThinkingCallbackHandler(self.swipy_bot)]),
         )
@@ -93,7 +93,7 @@ class StuffConvRetrievalBot(ConvRetrievalBot):
     """Conversational Retrieval Bot that uses "stuff" pattern."""
 
     def load_doc_chain(self, chat_llm: ChatOpenAI) -> BaseCombineDocumentsChain:
-        # TODO download prompt from PromptLayer only once ?
+        # TODO download prompt from PromptLayer only once ? or just hardcode the prompt when done experimenting ?
         stuff_chat_prompt = ChatPromptTemplate.from_messages(
             [
                 SystemMessagePromptTemplate.from_template(stuff_prompt.system_template),
