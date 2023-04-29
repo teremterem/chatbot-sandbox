@@ -10,7 +10,7 @@ load_dotenv()
 REPO_PATH = Path(__file__).parents[1]
 sys.path.append(str(REPO_PATH))
 
-from chatbots.talk_to_doc import repo_to_faiss
+from chatbots.ingestion_utils import repo_to_faiss
 
 LANGCHAIN_VERSION = "v0.0.151"
 

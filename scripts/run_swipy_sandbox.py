@@ -17,7 +17,8 @@ sys.path.append(str(REPO_PATH))
 #
 # patch_openai()
 
-from chatbots.talk_to_doc import ConvRetrievalBot, get_embeddings, StuffConvRetrievalBot
+from chatbots.talk_to_doc import ConvRetrievalBot, StuffConvRetrievalBot
+from chatbots.ingestion_utils import get_embeddings
 from swipy_client import SwipyBot
 
 
@@ -60,8 +61,8 @@ def create_langchain_experiments(exp_name_suffix: str, faiss_subfolder: str) -> 
         return [langchain_src_bot, langchain_test_bot, langchain_doc_bot]
 
     return [
-        *create_gpt_4_3_experiments(exp_name_suffix + "_gpt4", use_gpt4=True),
-        *create_gpt_4_3_experiments(exp_name_suffix + "_gpt3", use_gpt4=False),
+        *create_gpt_4_3_experiments("gpt3_" + exp_name_suffix, use_gpt4=False),
+        *create_gpt_4_3_experiments("gpt4_" + exp_name_suffix, use_gpt4=True),
     ]
 
 
