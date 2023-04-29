@@ -93,11 +93,12 @@ class SwipyStuffDocumentsChain(StuffDocumentsChain):
 
     async def acombine_docs(self, docs: list[Document], **kwargs: Any) -> tuple[str, dict]:
         """Stuff all documents into one prompt and pass to LLM."""
-        # preserve the original order of docs
+        doc_source_set = set()
         non_duplicate_docs = []
         for doc in docs:
             if doc.metadata["source"] not in non_duplicate_docs:
                 non_duplicate_docs.append(doc)
+                doc_source_set.add(doc.metadata["source"])
 
         doc_list = [
             f"- [{self.pretty_path_prefix}{doc.metadata['path']}]({doc.metadata['source']})"
