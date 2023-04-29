@@ -107,7 +107,7 @@ class SwipyStuffDocumentsChain(StuffDocumentsChain):
         ]
         line_separator = "\n"
         await self.swipy_bot.send_message(
-            text=f"_Looking at_ 🔍\n{line_separator.join(doc_list)}",
+            text=f"_Looking at:_\n{line_separator.join(doc_list)}",
             parse_mode="Markdown",
             disable_notification=True,
             disable_web_page_preview=True,
@@ -139,7 +139,7 @@ class SwipyRefineDocumentsChain(RefineDocumentsChain):
 
     async def _report_doc_processing(self, doc: Document) -> None:
         await self.swipy_bot.send_message(
-            text=f"_Looking at_ [{self.pretty_path_prefix}{doc.metadata['path']}]({doc.metadata['source']}) 🔍",
+            text=f"_Looking at_ [{self.pretty_path_prefix}{doc.metadata['path']}]({doc.metadata['source']})",
             parse_mode="Markdown",
             disable_notification=True,
             disable_web_page_preview=True,
