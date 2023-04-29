@@ -11,7 +11,6 @@ from PyPDF2 import PdfReader
 from langchain import FAISS, LLMChain
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chains.conversational_retrieval.prompts import CONDENSE_QUESTION_PROMPT
-from langchain.chains.question_answering import _load_stuff_chain
 from langchain.chat_models import PromptLayerChatOpenAI, ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.embeddings.base import Embeddings
@@ -20,7 +19,7 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import VectorStore
 from pathspec import pathspec
 
-from chatbots.langchain_customizations import load_swipy_refine_chain
+from chatbots.langchain_customizations import load_swipy_refine_chain, load_swipy_stuff_chain
 from swipy_client import SwipyBot
 
 
@@ -77,7 +76,12 @@ class StuffConvRetrievalBot(ConvRetrievalBot):
     """Conversational Retrieval Bot that uses "stuff" pattern."""
 
     async def run_llm_chain(self, chat_llm: ChatOpenAI, data: dict[str, Any]) -> dict[str, Any]:
-        doc_chain = _load_stuff_chain(chat_llm, verbose=False)
+        doc_chain = load_swipy_stuff_chain(
+            chat_llm,
+            self.swipy_bot,
+            pretty_path_prefix=self.pretty_path_prefix,
+            verbose=False,
+        )
         condense_question_chain = LLMChain(llm=chat_llm, prompt=CONDENSE_QUESTION_PROMPT, verbose=False)
         qna = ConversationalRetrievalChain(
             retriever=self.vector_store.as_retriever(search_kwargs={"k": 4}),

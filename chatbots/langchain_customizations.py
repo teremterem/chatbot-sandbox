@@ -5,10 +5,38 @@ from typing import Any
 from langchain import BasePromptTemplate, LLMChain
 from langchain.callbacks import BaseCallbackManager
 from langchain.chains.combine_documents.refine import RefineDocumentsChain
-from langchain.chains.question_answering import refine_prompts
+from langchain.chains.combine_documents.stuff import StuffDocumentsChain
+from langchain.chains.question_answering import refine_prompts, stuff_prompt
 from langchain.schema import Document, BaseLanguageModel
 
 from swipy_client import SwipyBot
+
+
+def load_swipy_stuff_chain(
+    llm: BaseLanguageModel,
+    swipy_bot: SwipyBot,
+    pretty_path_prefix: str = "",
+    prompt: BasePromptTemplate = None,
+    document_variable_name: str = "context",
+    verbose: bool = None,
+    callback_manager: BaseCallbackManager = None,
+    **kwargs: Any,
+) -> "SwipyStuffDocumentsChain":
+    """
+    A modification of:
+    langchain/chains/question_answering/__init__.py::_load_stuff_chain()
+    """
+    _prompt = prompt or stuff_prompt.PROMPT_SELECTOR.get_prompt(llm)
+    llm_chain = LLMChain(llm=llm, prompt=_prompt, verbose=verbose, callback_manager=callback_manager)
+    return SwipyStuffDocumentsChain(
+        swipy_bot=swipy_bot,
+        pretty_path_prefix=pretty_path_prefix,
+        llm_chain=llm_chain,
+        document_variable_name=document_variable_name,
+        verbose=verbose,
+        callback_manager=callback_manager,
+        **kwargs,
+    )
 
 
 def load_swipy_refine_chain(
@@ -55,6 +83,27 @@ def load_swipy_refine_chain(
         callback_manager=callback_manager,
         **kwargs,
     )
+
+
+class SwipyStuffDocumentsChain(StuffDocumentsChain):
+    """A stuff chain that reports the documents that are being used to answer to the user."""
+
+    swipy_bot: SwipyBot
+    pretty_path_prefix: str = ""
+
+    async def acombine_docs(self, docs: list[Document], **kwargs: Any) -> tuple[str, dict]:
+        """Stuff all documents into one prompt and pass to LLM."""
+        doc_list = [f"- {self.pretty_path_prefix}{doc.metadata['path']}]({doc.metadata['source']})" for doc in docs]
+        line_separator = "\n"
+        await self.swipy_bot.send_message(
+            text=f"_Looking at:_\n{line_separator.join(doc_list)}",
+            parse_mode="Markdown",
+            disable_notification=True,
+            disable_web_page_preview=True,
+            is_visible_to_bot=False,
+            keep_typing=True,
+        )
+        return await super().acombine_docs(docs, **kwargs)
 
 
 class SwipyRefineDocumentsChain(RefineDocumentsChain):
