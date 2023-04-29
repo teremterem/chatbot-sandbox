@@ -165,7 +165,7 @@ class SwipyConversationalRetrievalChain(ConversationalRetrievalChain):
         if chat_history_str:
             new_question = await self.question_generator.arun(question=question, chat_history=chat_history_str)
             await self.swipy_bot.send_message(  # modification
-                text=f"SEARCHING: {new_question} 🤔",
+                text=f"{new_question} 🤔",
                 # parse_mode="Markdown",
                 disable_notification=True,
                 disable_web_page_preview=True,
