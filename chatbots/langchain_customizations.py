@@ -93,7 +93,16 @@ class SwipyStuffDocumentsChain(StuffDocumentsChain):
 
     async def acombine_docs(self, docs: list[Document], **kwargs: Any) -> tuple[str, dict]:
         """Stuff all documents into one prompt and pass to LLM."""
-        doc_list = {f"- [{self.pretty_path_prefix}{doc.metadata['path']}]({doc.metadata['source']})" for doc in docs}
+        # preserve the original order of docs
+        non_duplicate_docs = []
+        for doc in docs:
+            if doc.metadata["source"] not in non_duplicate_docs:
+                non_duplicate_docs.append(doc)
+
+        doc_list = [
+            f"- [{self.pretty_path_prefix}{doc.metadata['path']}]({doc.metadata['source']})"
+            for doc in non_duplicate_docs
+        ]
         line_separator = "\n"
         await self.swipy_bot.send_message(
             text=f"_Looking at:_\n{line_separator.join(doc_list)}",
