@@ -67,6 +67,7 @@ class SwipyBot:
         Send a message from a chatbot on Swipy Platform. Which chatbot, which chat, etc. is determined by the
         fulfillment_id.
         """
+        # TODO investigate why sometimes message is not sent ? some kind of async "deadlock" ?
         fulfillment_id = _fulfillment_id_var.get()
         await _post(f"/send_message/{fulfillment_id}/", data, self.swipy_bot_token)
 
@@ -129,6 +130,8 @@ async def _post(path: str, data: dict[str, Any], swipy_bot_token: str = None) ->
                 "but DEFAULT_SWIPY_BOT_TOKEN env var is not set"
             )
 
-    return await _client.post(
-        f"{swipy_platform_http_uri}{path}", json=data, headers={"X-Swipy-Bot-Token": swipy_bot_token}
-    )
+    url = f"{swipy_platform_http_uri}{path}"
+    # TODO introduce logging config so logs like the one below can be enabled/disabled
+    # logger.debug("POST: %s\n%s", url, data)
+    print(f"POST: {url}\n{data}")
+    return await _client.post(url, json=data, headers={"X-Swipy-Bot-Token": swipy_bot_token})
