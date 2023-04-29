@@ -1,5 +1,6 @@
 """A chatbot that answers questions about a repo, a PDF document etc."""
 import os
+from abc import ABC, abstractmethod
 from pathlib import Path
 from pprint import pprint
 from typing import Any
@@ -11,7 +12,7 @@ from langchain import FAISS, LLMChain
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chains.conversational_retrieval.prompts import CONDENSE_QUESTION_PROMPT
 from langchain.chains.question_answering import _load_stuff_chain
-from langchain.chat_models import PromptLayerChatOpenAI
+from langchain.chat_models import PromptLayerChatOpenAI, ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.embeddings.base import Embeddings
 from langchain.schema import Document, BaseMessage, ChatMessage, HumanMessage, AIMessage, SystemMessage
@@ -23,7 +24,7 @@ from chatbots.langchain_customizations import load_swipy_refine_chain
 from swipy_client import SwipyBot
 
 
-class TalkToDocBot:
+class ConvRetrievalBot(ABC):
     """A chatbot that answers questions about a repo, a PDF document etc."""
 
     def __init__(
@@ -38,66 +39,24 @@ class TalkToDocBot:
         self.use_gpt4 = use_gpt4
         self.pretty_path_prefix = pretty_path_prefix
 
-    async def refine_fulfillment_handler(self, bot: SwipyBot, data: dict[str, Any]) -> None:
+    @abstractmethod
+    async def run_llm_chain(self, chat_llm: ChatOpenAI, data: dict[str, Any]) -> dict[str, Any]:
+        """Build LLM chain and run it on a message."""
+
+    async def fulfillment_handler(self, bot: SwipyBot, data: dict[str, Any]) -> None:
         """Handle fulfillment requests from Swipy Platform."""
         # TODO we have both, self.swipy_bot and bot, which is confusing... bad design ?
         print("USER:")
         pprint(data)
         print()
 
-        llm_chat = PromptLayerChatOpenAI(
+        chat_llm = PromptLayerChatOpenAI(
             model_name="gpt-4" if self.use_gpt4 else "gpt-3.5-turbo",
             temperature=0,
             user=data["user_uuid"],
             pl_tags=[f"ff{data['fulfillment_id']}"],
         )
-        doc_chain = load_swipy_refine_chain(
-            llm_chat,
-            bot,
-            pretty_path_prefix=self.pretty_path_prefix,
-            verbose=False,
-        )
-        condense_question_chain = LLMChain(llm=llm_chat, prompt=CONDENSE_QUESTION_PROMPT, verbose=False)
-        qna = ConversationalRetrievalChain(
-            retriever=self.vector_store.as_retriever(search_kwargs={"k": 4}),
-            combine_docs_chain=doc_chain,
-            question_generator=condense_question_chain,
-        )
-
-        chat_history = _openai_msg_history_to_langchain(data["message_history"])
-        result = await qna.acall({"question": data["message"]["content"], "chat_history": chat_history})
-
-        print("ASSISTANT:")
-        pprint(result)
-        print()
-        await bot.send_message(
-            text=result["answer"],
-            # parse_mode="Markdown",
-        )
-
-    async def stuff_fulfillment_handler(self, bot: SwipyBot, data: dict[str, Any]) -> None:
-        """Handle fulfillment requests from Swipy Platform."""
-        # TODO we have both, self.swipy_bot and bot, which is confusing... bad design ?
-        print("USER:")
-        pprint(data)
-        print()
-
-        llm_chat = PromptLayerChatOpenAI(
-            model_name="gpt-4" if self.use_gpt4 else "gpt-3.5-turbo",
-            temperature=0,
-            user=data["user_uuid"],
-            pl_tags=[f"ff{data['fulfillment_id']}"],
-        )
-        doc_chain = _load_stuff_chain(llm_chat, verbose=False)
-        condense_question_chain = LLMChain(llm=llm_chat, prompt=CONDENSE_QUESTION_PROMPT, verbose=False)
-        qna = ConversationalRetrievalChain(
-            retriever=self.vector_store.as_retriever(search_kwargs={"k": 4}),
-            combine_docs_chain=doc_chain,
-            question_generator=condense_question_chain,
-        )
-
-        chat_history = _openai_msg_history_to_langchain(data["message_history"])
-        result = await qna.acall({"question": data["message"]["content"], "chat_history": chat_history})
+        result = await self.run_llm_chain(chat_llm, data)
 
         print("ASSISTANT:")
         pprint(result)
@@ -111,7 +70,46 @@ class TalkToDocBot:
         """Run the fulfillment client."""
         # TODO get rid of copy-paste in the two fulfillment handlers
         # await self.swipy_bot.run_fulfillment_client(self.refine_fulfillment_handler)
-        await self.swipy_bot.run_fulfillment_client(self.stuff_fulfillment_handler)
+        await self.swipy_bot.run_fulfillment_client(self.fulfillment_handler)
+
+
+class StuffConvRetrievalBot(ConvRetrievalBot):
+    """Conversational Retrieval Bot that uses "stuff" pattern."""
+
+    async def run_llm_chain(self, chat_llm: ChatOpenAI, data: dict[str, Any]) -> dict[str, Any]:
+        doc_chain = _load_stuff_chain(chat_llm, verbose=False)
+        condense_question_chain = LLMChain(llm=chat_llm, prompt=CONDENSE_QUESTION_PROMPT, verbose=False)
+        qna = ConversationalRetrievalChain(
+            retriever=self.vector_store.as_retriever(search_kwargs={"k": 4}),
+            combine_docs_chain=doc_chain,
+            question_generator=condense_question_chain,
+        )
+
+        chat_history = _openai_msg_history_to_langchain(data["message_history"])
+        result = await qna.acall({"question": data["message"]["content"], "chat_history": chat_history})
+        return result
+
+
+class RefineConvRetrievalBot(ConvRetrievalBot):
+    """Conversational Retrieval Bot that uses "refine" pattern."""
+
+    async def run_llm_chain(self, chat_llm: ChatOpenAI, data: dict[str, Any]) -> dict[str, Any]:
+        doc_chain = load_swipy_refine_chain(
+            chat_llm,
+            self.swipy_bot,
+            pretty_path_prefix=self.pretty_path_prefix,
+            verbose=False,
+        )
+        condense_question_chain = LLMChain(llm=chat_llm, prompt=CONDENSE_QUESTION_PROMPT, verbose=False)
+        qna = ConversationalRetrievalChain(
+            retriever=self.vector_store.as_retriever(search_kwargs={"k": 4}),
+            combine_docs_chain=doc_chain,
+            question_generator=condense_question_chain,
+        )
+
+        chat_history = _openai_msg_history_to_langchain(data["message_history"])
+        result = await qna.acall({"question": data["message"]["content"], "chat_history": chat_history})
+        return result
 
 
 def get_embeddings() -> Embeddings:

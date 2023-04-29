@@ -17,11 +17,11 @@ sys.path.append(str(REPO_PATH))
 #
 # patch_openai()
 
-from chatbots.talk_to_doc import TalkToDocBot, get_embeddings
+from chatbots.talk_to_doc import ConvRetrievalBot, get_embeddings, StuffConvRetrievalBot
 from swipy_client import SwipyBot
 
 
-def create_langchain_experiments(exp_name_suffix: str, faiss_subfolder: str) -> list[TalkToDocBot]:
+def create_langchain_experiments(exp_name_suffix: str, faiss_subfolder: str) -> list[ConvRetrievalBot]:
     """Create the experiments for the langchain_src bot."""
     embeddings = get_embeddings()
 
@@ -38,20 +38,20 @@ def create_langchain_experiments(exp_name_suffix: str, faiss_subfolder: str) -> 
         embeddings,
     )
 
-    def create_gpt_4_3_experiments(_exp_name_suffix: str, use_gpt4: bool) -> list[TalkToDocBot]:
-        langchain_src_bot = TalkToDocBot(
+    def create_gpt_4_3_experiments(_exp_name_suffix: str, use_gpt4: bool) -> list[ConvRetrievalBot]:
+        langchain_src_bot = StuffConvRetrievalBot(
             SwipyBot(os.environ["LANGCHAIN_SRC_BOT_TOKEN"], experiment_name=f"lc_src_{_exp_name_suffix}"),
             langchain_src_faiss,
             use_gpt4=use_gpt4,
             pretty_path_prefix="langchain/",
         )
-        langchain_test_bot = TalkToDocBot(
+        langchain_test_bot = StuffConvRetrievalBot(
             SwipyBot(os.environ["LANGCHAIN_SRC_BOT_TOKEN"], experiment_name=f"lc_test_{_exp_name_suffix}"),
             langchain_test_faiss,
             use_gpt4=use_gpt4,
             pretty_path_prefix="langchain/tests/",
         )
-        langchain_doc_bot = TalkToDocBot(
+        langchain_doc_bot = StuffConvRetrievalBot(
             SwipyBot(os.environ["LANGCHAIN_SRC_BOT_TOKEN"], experiment_name=f"lc_doc_{_exp_name_suffix}"),
             langchain_doc_faiss,
             use_gpt4=use_gpt4,
