@@ -133,5 +133,5 @@ async def _post(path: str, data: dict[str, Any], swipy_bot_token: str = None) ->
     url = f"{swipy_platform_http_uri}{path}"
     # TODO introduce logging config so logs like the one below can be enabled/disabled
     # logger.debug("POST: %s\n%s", url, data)
-    print(f"POST: {url}\n{data}")
+    print(f"POST: {url}\n{data}\n")
     return await _client.post(url, json=data, headers={"X-Swipy-Bot-Token": swipy_bot_token})
