@@ -96,7 +96,7 @@ class SwipyStuffDocumentsChain(StuffDocumentsChain):
         doc_source_set = set()
         non_duplicate_docs = []
         for doc in docs:
-            if doc.metadata["source"] not in non_duplicate_docs:
+            if doc.metadata["source"] not in doc_source_set:
                 non_duplicate_docs.append(doc)
                 doc_source_set.add(doc.metadata["source"])
 
