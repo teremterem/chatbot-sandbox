@@ -75,6 +75,7 @@ class ConvRetrievalBot(ABC):
                 "\n\nHUMAN:",
                 "\n\nASSISTANT:",
             ],
+            request_timeout=300,
             user=data["user_uuid"],
             pl_tags=[f"ff{data['fulfillment_id']}"],
         )
