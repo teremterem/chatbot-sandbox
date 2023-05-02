@@ -49,7 +49,7 @@ idna==3.4
     #   httpx
     #   requests
     #   yarl
-langchain==0.0.150
+langchain==0.0.154
     # via
     #   -r requirements.in
     #   promptlayer
@@ -74,7 +74,7 @@ numpy==1.24.3
     #   langchain
     #   numexpr
     #   pinecone-client
-openai==0.27.4
+openai==0.27.5
     # via
     #   -r requirements.in
     #   promptlayer
@@ -120,7 +120,7 @@ sniffio==1.3.0
     #   anyio
     #   httpcore
     #   httpx
-sqlalchemy==2.0.10
+sqlalchemy==2.0.12
     # via langchain
 tenacity==8.2.2
     # via langchain

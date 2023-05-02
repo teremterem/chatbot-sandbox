@@ -1,7 +1,7 @@
 chardet==5.1.0
 faiss-cpu==1.7.4
 httpx==0.24.0
-langchain==0.0.151
+langchain==0.0.154
 openai==0.27.5
 pathspec==0.11.1
 pinecone-client==2.2.1

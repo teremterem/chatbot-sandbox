@@ -93,7 +93,7 @@ ipykernel==6.22.0
     # via
     #   nbclassic
     #   notebook
-ipython==8.12.0
+ipython==8.13.1
     # via
     #   -r dev-requirements.in
     #   ipykernel
@@ -188,7 +188,7 @@ mypy-extensions==1.0.0
     # via
     #   -c requirements.txt
     #   black
-nbclassic==0.5.5
+nbclassic==0.5.6
     # via
     #   jupyterlab
     #   notebook
@@ -241,7 +241,7 @@ pickleshare==0.7.5
     # via ipython
 pip-tools==6.13.0
     # via -r dev-requirements.in
-platformdirs==3.4.0
+platformdirs==3.5.0
     # via
     #   black
     #   jupyter-core
@@ -307,7 +307,7 @@ rfc3986-validator==0.1.1
     # via
     #   jsonschema
     #   jupyter-events
-send2trash==1.8.0
+send2trash==1.8.2
     # via
     #   jupyter-server
     #   nbclassic
@@ -335,7 +335,7 @@ terminado==0.17.1
     #   notebook
 tinycss2==1.2.1
     # via nbconvert
-tomlkit==0.11.7
+tomlkit==0.11.8
     # via pylint
 tornado==6.3.1
     # via
@@ -367,7 +367,7 @@ urllib3==1.26.15
     # via
     #   -c requirements.txt
     #   requests
-virtualenv==20.22.0
+virtualenv==20.23.0
     # via pre-commit
 wcwidth==0.2.6
     # via prompt-toolkit

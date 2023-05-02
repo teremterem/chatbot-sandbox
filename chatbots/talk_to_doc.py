@@ -5,7 +5,7 @@ from typing import Any
 
 import promptlayer.prompts
 from langchain import LLMChain
-from langchain.callbacks import AsyncCallbackManager
+from langchain.callbacks.manager import AsyncCallbackManager
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.question_answering import stuff_prompt
 from langchain.chat_models import PromptLayerChatOpenAI, ChatOpenAI

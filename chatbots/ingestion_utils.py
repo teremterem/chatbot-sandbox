@@ -2,7 +2,6 @@
 import os
 from pathlib import Path
 
-import chardet
 import magic
 from PyPDF2 import PdfReader
 from langchain import FAISS
@@ -11,6 +10,8 @@ from langchain.embeddings.base import Embeddings
 from langchain.schema import Document
 from langchain.text_splitter import CharacterTextSplitter
 from pathspec import pathspec
+
+from chatbots.langchain_customizations import SwipyCodeTextSplitter
 
 
 def get_embeddings() -> Embeddings:
@@ -40,19 +41,22 @@ def pdf_to_faiss(pdf_path: str | Path) -> FAISS:
     return FAISS.from_texts(texts, embeddings)
 
 
-def repo_to_faiss(
+def repo_to_faiss(  # pylint: disable=too-many-arguments
     repo_path: str | Path,
+    save_to_dir: str | Path,
     chunk_size: int,
     chunk_overlap: int,
+    source_url_base: str,
     additional_gitignore_content: str = "",
-    source_url_base: str = None,
-) -> FAISS:
+) -> None:
     """Ingest a git repository and return a FAISS instance."""
     # pylint: disable=too-many-locals
+    # TODO log all problems to a file, not just print them
+
     repo_path = Path(repo_path).resolve()
-    if source_url_base:
-        source_url_base = source_url_base.strip()
-        source_url_base = source_url_base.rstrip("/")
+    save_to_dir = Path(save_to_dir).resolve()
+    source_url_base = source_url_base.strip()
+    source_url_base = source_url_base.rstrip("/")
 
     print()
     print("REPO:", repo_path)
@@ -61,45 +65,52 @@ def repo_to_faiss(
     print()
 
     filepaths = _list_files_in_repo(repo_path, additional_gitignore_content)
-    text_splitter = CharacterTextSplitter(
-        separator="\n",
+    text_splitter = SwipyCodeTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
-        length_function=len,
     )
     documents: list[Document] = []
-    for filepath in filepaths:
-        print(filepath, end=" - ")
 
-        with open(repo_path / filepath, "rb") as file:
-            raw_bytes = file.read()
-        detected_encoding = chardet.detect(raw_bytes).get("encoding") or "utf-8"
-        print(detected_encoding)
+    save_to_dir.mkdir(parents=True, exist_ok=True)
+    with open(save_to_dir / "snippet_log.txt", "w", encoding="utf-8") as snippet_file:
+        for filepath in filepaths:
+            # print(filepath, end=" - ")
 
-        try:
-            raw_text = raw_bytes.decode(detected_encoding)
-        except UnicodeDecodeError as exc:
-            print(f"ERROR! SKIPPING A FILE! {exc}")
-        else:
-            text_snippets = text_splitter.split_text(raw_text)
-            for snippet_idx, text_snippet in enumerate(text_snippets):
-                filepath_posix = filepath.as_posix()
+            with open(repo_path / filepath, "rb") as file:
+                raw_bytes = file.read()
+            detected_encoding = "utf-8"  # chardet.detect(raw_bytes).get("encoding") or "utf-8"
+            # print(detected_encoding)
 
-                source = filepath_posix
-                if source_url_base:
-                    source = f"{source_url_base}/{filepath_posix}"
+            try:
+                raw_text = raw_bytes.decode(detected_encoding)
+            except UnicodeDecodeError as exc:
+                print(f"ERROR! SKIPPING A FILE! {filepath} - {exc}")
+            else:
+                text_snippets = text_splitter.split_text(raw_text)
+                for snippet_idx, text_snippet in enumerate(text_snippets):
+                    filepath_posix = filepath.as_posix()
 
-                documents.append(
-                    Document(
-                        page_content=text_snippet,
-                        metadata={
-                            "source": source,
-                            "path": filepath_posix,
-                            "snippet_idx": snippet_idx,
-                            "snippets_total": len(text_snippets),
-                        },
+                    source = filepath_posix
+                    if source_url_base:
+                        source = f"{source_url_base}/{filepath_posix}"
+
+                    text_snippet = f"{source} - SNIPPET {snippet_idx + 1}/{len(text_snippets)}:\n" f"{text_snippet}"
+
+                    documents.append(
+                        Document(
+                            page_content=text_snippet,
+                            metadata={
+                                "source": source,
+                                "path": filepath_posix,
+                                "snippet_idx": snippet_idx,
+                                "snippets_total": len(text_snippets),
+                            },
+                        )
                     )
-                )
+                    snippet_file.write(text_snippet)
+                    snippet_file.write(
+                        "\n================================================================================\n"
+                    )
 
     print()
     print("================================================================================")
@@ -113,10 +124,10 @@ def repo_to_faiss(
 
     embeddings = get_embeddings()
     faiss = FAISS.from_documents(documents, embeddings)
+    faiss.save_local(str(save_to_dir))
 
     print("DONE")
     print()
-    return faiss
 
 
 def _list_files_in_repo(repo_path: str | Path, additional_gitignore_content: str) -> list[Path]:
