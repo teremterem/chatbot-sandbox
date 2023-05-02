@@ -98,6 +98,7 @@ async def main() -> None:
         # *create_langchain_experiments("1k", "1000-200"),
     ]
     bots[0].swipy_bot.experiment_name += "-default"
+    bots[1].swipy_bot.experiment_name += "-default"
 
     print()
     await asyncio.gather(*(asyncio.create_task(bot.run_fulfillment_client()) for bot in bots))
