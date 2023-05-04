@@ -3,12 +3,14 @@ import asyncio
 import json
 import logging
 import os
+import time
 from contextvars import ContextVar
 from typing import Any, Callable, Awaitable
 
 import httpx
 from httpx import Response
 from websockets.client import connect
+from websockets.exceptions import ConnectionClosedError
 
 swipy_platform_http_uri = os.getenv("SWIPY_PLATFORM_HTTP_URI", "http://localhost:8000")
 swipy_platform_ws_uri = os.getenv("SWIPY_PLATFORM_WS_URI", "ws://localhost:8000")
@@ -27,27 +29,45 @@ FulfillmentHandler = Callable[["SwipyBot", dict[str, Any]], Awaitable[None]]
 class SwipyBot:
     """A Swipy Platform client."""
 
-    def __init__(self, swipy_bot_token: str) -> None:
+    def __init__(self, swipy_bot_token: str, experiment_name: str = "default") -> None:
         self.swipy_bot_token = swipy_bot_token
+        self.experiment_name = experiment_name
 
     async def run_fulfillment_client(self, fulfillment_handler: FulfillmentHandler) -> None:
         """Connect to Swipy Platform and listen for fulfillment requests."""
         # pylint: disable=no-member
-        # TODO reconnect if connection is lost ? how many times ? exponential backoff ?
-        async with connect(
-            f"{swipy_platform_ws_uri}/fulfillment_websocket/",
-            extra_headers={"X-Swipy-Bot-Token": self.swipy_bot_token},
-        ) as websocket:
-            while True:
-                data_str = await websocket.recv()
-                data = json.loads(data_str)
-                asyncio.create_task(self._fulfillment_handler_wrapper(fulfillment_handler, data))
+        attempt = 1
+        while True:
+            attempt_time = time.time()
+            try:
+                async with connect(
+                    f"{swipy_platform_ws_uri}/fulfillment_websocket/",
+                    extra_headers={
+                        "X-Swipy-Bot-Token": self.swipy_bot_token,
+                        "X-Swipy-Experiment-Name": self.experiment_name,
+                    },
+                ) as websocket:
+                    print(f"SWIPY BOT ONLINE ({self.experiment_name})")
+                    print()
+                    while True:
+                        data_str = await websocket.recv()
+                        data = json.loads(data_str)
+                        asyncio.create_task(self._fulfillment_handler_wrapper(fulfillment_handler, data))
+            except ConnectionClosedError:
+                if time.time() - attempt_time > 120:
+                    # if more than 2 minutes passed since the last attempt_time, then reset the attempt to 1
+                    attempt = 1
+
+                sleep_time = 2**attempt
+                logger.warning("WEBSOCKET CONNECTION LOST, RETRYING IN %s SECONDS", sleep_time, exc_info=True)
+                await asyncio.sleep(sleep_time)
 
     async def send_message(self, **data) -> None:
         """
         Send a message from a chatbot on Swipy Platform. Which chatbot, which chat, etc. is determined by the
         fulfillment_id.
         """
+        # TODO investigate why sometimes message is not sent ? some kind of async "deadlock" ?
         fulfillment_id = _fulfillment_id_var.get()
         await _post(f"/send_message/{fulfillment_id}/", data, self.swipy_bot_token)
 
@@ -64,7 +84,10 @@ class SwipyBot:
         except Exception as exc:
             logger.exception(exc)
             try:
-                await self.send_message(text=f"⚠️ Oops, something went wrong ⚠️\n\n{exc}")
+                await self.send_message(
+                    text=f"⚠️ Oops, something went wrong ⚠️\n\n{exc}",
+                    is_visible_to_bot=False,
+                )
             except Exception as exc2:
                 # TODO do we even need to log this ? it may confuse what was the original error
                 logger.warning("FAILED TO REPORT ERROR TO THE USER", exc_info=exc2)
@@ -107,6 +130,8 @@ async def _post(path: str, data: dict[str, Any], swipy_bot_token: str = None) ->
                 "but DEFAULT_SWIPY_BOT_TOKEN env var is not set"
             )
 
-    return await _client.post(
-        f"{swipy_platform_http_uri}{path}", json=data, headers={"X-Swipy-Bot-Token": swipy_bot_token}
-    )
+    url = f"{swipy_platform_http_uri}{path}"
+    # TODO introduce logging config so logs like the one below can be enabled/disabled
+    # logger.debug("POST: %s\n%s", url, data)
+    print(f"POST: {url}\n{data}\n")
+    return await _client.post(url, json=data, headers={"X-Swipy-Bot-Token": swipy_bot_token})

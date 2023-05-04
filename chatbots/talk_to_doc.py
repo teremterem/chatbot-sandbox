@@ -1,240 +1,155 @@
-"""
-This chatbot is based on materials from the following video by Prompt Engineering YouTube channel
-(checkout video description for more links): https://www.youtube.com/watch?v=TLf90ipMzfE
-"""
-import itertools
-import os
-from pathlib import Path
+"""A chatbot that answers questions about a repo, a PDF document etc."""
+from abc import ABC, abstractmethod
+from pprint import pprint
 from typing import Any
 
-import chardet
-import magic
-from PyPDF2 import PdfReader
-from langchain import FAISS
-from langchain.chains.question_answering import load_qa_chain
-from langchain.chat_models import PromptLayerChatOpenAI
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.embeddings.base import Embeddings
-from langchain.schema import Document
-from langchain.text_splitter import CharacterTextSplitter
+import promptlayer.prompts
+from langchain import LLMChain
+from langchain.callbacks.manager import AsyncCallbackManager
+from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
+from langchain.chains.question_answering import stuff_prompt
+from langchain.chat_models import PromptLayerChatOpenAI, ChatOpenAI
+from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
+from langchain.schema import BaseMessage, ChatMessage, HumanMessage, AIMessage, SystemMessage
 from langchain.vectorstores import VectorStore
-from pathspec import pathspec
 
+from chatbots.langchain_customizations import (
+    load_swipy_refine_chain,
+    load_swipy_stuff_chain,
+    ThinkingCallbackHandler,
+    SwipyConversationalRetrievalChain,
+)
 from swipy_client import SwipyBot
 
 
-class TalkToDocBot:
-    """A chatbot that answers questions about a PDF document."""
+class ConvRetrievalBot(ABC):
+    """A chatbot that answers questions about a repo, a PDF document etc."""
 
-    def __init__(self, swipy_bot_token: str, vector_store: VectorStore, chain_type="stuff") -> None:
-        self.swipy_bot_token = swipy_bot_token
+    def __init__(
+        self,
+        swipy_bot: SwipyBot,
+        vector_store: VectorStore,
+        use_gpt4: bool = False,
+        pretty_path_prefix: str = "",
+    ) -> None:
+        self.swipy_bot = swipy_bot
         self.vector_store = vector_store
-        self.chain_type = chain_type
+        self.use_gpt4 = use_gpt4
+        self.pretty_path_prefix = pretty_path_prefix
 
-    async def run_fulfillment_client(self):
-        """Connect to Swipy Platform and listen for fulfillment requests."""
-        print("BOT STARTED")
-        print()
-        await SwipyBot(self.swipy_bot_token).run_fulfillment_client(self._fulfillment_handler)
+    @abstractmethod
+    def load_doc_chain(self, chat_llm: ChatOpenAI) -> BaseCombineDocumentsChain:
+        """Load a chain that combines documents."""
 
-    async def _fulfillment_handler(self, bot: SwipyBot, data: dict[str, Any]) -> None:
-        """Handle fulfillment requests from Swipy Platform."""
-        print("USER:", data["message"]["content"])
-        print()
-
-        query = self._build_query(data)
-
-        llm_chat = PromptLayerChatOpenAI(
-            user=data["user_uuid"],
-            temperature=0,
-            pl_tags=[f"ff{data['fulfillment_id']}"],
+    async def run_llm_chain(self, chat_llm: ChatOpenAI, data: dict[str, Any]) -> dict[str, Any]:
+        """Build LLM chain and run it on a message."""
+        condense_question_chain = LLMChain(
+            llm=chat_llm,
+            # TODO download prompt from PromptLayer only once ? or just hardcode the prompt when done experimenting ?
+            prompt=promptlayer.prompts.get("condense_question_prompt", langchain=True),
+            verbose=True,
+            callback_manager=AsyncCallbackManager([ThinkingCallbackHandler(self.swipy_bot)]),
         )
-        chain = load_qa_chain(llm_chat, chain_type=self.chain_type)
-        docs = await self.vector_store.asimilarity_search(query, k=4)
-        llm_response = await chain.arun(
-            input_documents=docs,
-            question=query,
+        qna = SwipyConversationalRetrievalChain(
+            swipy_bot=self.swipy_bot,
+            retriever=self.vector_store.as_retriever(search_kwargs={"k": 4}),
+            combine_docs_chain=self.load_doc_chain(chat_llm),
+            question_generator=condense_question_chain,
+            get_chat_history=_get_chat_history,
+        )
+
+        chat_history = _openai_msg_history_to_langchain(data["message_history"])
+        result = await qna.acall({"question": data["message"]["content"], "chat_history": chat_history})
+        return result
+
+    async def fulfillment_handler(self, _, data: dict[str, Any]) -> None:
+        """Handle fulfillment requests from Swipy Platform."""
+        print("HUMAN:")
+        pprint(data)
+        print()
+
+        chat_llm = PromptLayerChatOpenAI(
+            model_name="gpt-4" if self.use_gpt4 else "gpt-3.5-turbo",
+            temperature=0,
             stop=[
-                "\n\nUSER:",
+                "\n\nHUMAN:",
                 "\n\nASSISTANT:",
             ],
+            request_timeout=300,
+            user=data["user_uuid"],
+            pl_tags=[f"ff{data['fulfillment_id']}"],
         )
+        result = await self.run_llm_chain(chat_llm, data)
 
-        source_set = {f"\n- [{doc.metadata['path']}]({doc.metadata['source']})" for doc in docs}
-        final_response_parts = [llm_response, "\n\nPOSSIBLE SOURCES:", *sorted(source_set)]
-        final_response = "".join(final_response_parts)
-
-        print("ASSISTANT:", final_response)
+        print("ASSISTANT:")
+        pprint(result)
         print()
-        await bot.send_message(
-            text=final_response,
-            parse_mode="Markdown",
-            disable_web_page_preview=True,
+        # TODO support parse_mode="Markdown" somehow ? Some kind of Markdown escaping is needed for that ?
+        await self.swipy_bot.send_message(text=result["answer"])
+
+    async def run_fulfillment_client(self) -> None:
+        """Run the fulfillment client."""
+        # TODO get rid of copy-paste in the two fulfillment handlers
+        # await self.swipy_bot.run_fulfillment_client(self.refine_fulfillment_handler)
+        await self.swipy_bot.run_fulfillment_client(self.fulfillment_handler)
+
+
+class StuffConvRetrievalBot(ConvRetrievalBot):
+    """Conversational Retrieval Bot that uses "stuff" pattern."""
+
+    def load_doc_chain(self, chat_llm: ChatOpenAI) -> BaseCombineDocumentsChain:
+        # TODO download prompt from PromptLayer only once ? or just hardcode the prompt when done experimenting ?
+        stuff_chat_prompt = ChatPromptTemplate.from_messages(
+            [
+                SystemMessagePromptTemplate.from_template(stuff_prompt.system_template),
+                HumanMessagePromptTemplate(prompt=promptlayer.prompts.get("stuff_prompt_question", langchain=True)),
+            ]
         )
-
-    @staticmethod
-    def _build_query(data: dict[str, Any]) -> str:
-        query_parts = []
-        for msg in itertools.chain(data["message_history"], (data["message"],)):
-            query_parts.append(msg["role"].upper())
-            query_parts.append(": ")
-            query_parts.append(msg["content"])
-            query_parts.append("\n\n")
-        query_parts.append("ASSISTANT:")
-        return "".join(query_parts)
-
-    @staticmethod
-    def build_embeddings() -> Embeddings:
-        """Build LangChain's Embeddings object."""
-        return OpenAIEmbeddings(allowed_special="all")
-
-
-class FaissBot(TalkToDocBot):
-    """A chatbot that answers questions using a FAISS index that was saved locally."""
-
-    def __init__(self, swipy_bot_token: str, faiss_folder_path: str | Path) -> None:
-        embeddings = self.build_embeddings()
-        faiss = FAISS.load_local(faiss_folder_path, embeddings)
-
-        super().__init__(
-            swipy_bot_token=swipy_bot_token,
-            vector_store=faiss,
+        doc_chain = load_swipy_stuff_chain(
+            chat_llm,
+            self.swipy_bot,
+            pretty_path_prefix=self.pretty_path_prefix,
+            prompt=stuff_chat_prompt,
+            verbose=False,
         )
+        return doc_chain
 
 
-def pdf_to_faiss(pdf_path: str | Path) -> FAISS:
-    """Ingest a PDF and return a FAISS instance."""
-    reader = PdfReader(pdf_path)
-    raw_text_parts = [page.extract_text() for page in reader.pages]
-    raw_text = "\n".join(raw_text_parts)
+class RefineConvRetrievalBot(ConvRetrievalBot):
+    """Conversational Retrieval Bot that uses "refine" pattern."""
 
-    text_splitter = CharacterTextSplitter(
-        separator="\n",
-        chunk_size=1000,
-        chunk_overlap=200,
-        length_function=len,
-    )
-    texts = text_splitter.split_text(raw_text)
-    for text in texts:
-        print(text)
-        print("    LENGTH:", len(text), "CHARS")
-        print()
-
-    embeddings = FaissBot.build_embeddings()
-    return FAISS.from_texts(texts, embeddings)
+    def load_doc_chain(self, chat_llm: ChatOpenAI) -> BaseCombineDocumentsChain:
+        doc_chain = load_swipy_refine_chain(
+            chat_llm,
+            self.swipy_bot,
+            pretty_path_prefix=self.pretty_path_prefix,
+            verbose=False,
+        )
+        return doc_chain
 
 
-def repo_to_faiss(
-    repo_path: str | Path,
-    source_url_base: str = None,
-) -> FAISS:
-    """Ingest a git repository and return a FAISS instance."""
-    # pylint: disable=too-many-locals
-    repo_path = Path(repo_path).resolve()
-    if source_url_base:
-        source_url_base = source_url_base.strip()
-        source_url_base = source_url_base.rstrip("/")
-
-    print()
-    print("REPO:", repo_path)
-    print()
-    print("================================================================================")
-    print()
-
-    filepaths = _list_files_in_repo(repo_path)
-    text_splitter = CharacterTextSplitter(
-        separator="\n",
-        chunk_size=1000,
-        chunk_overlap=200,
-        length_function=len,
-    )
-    documents: list[Document] = []
-    for filepath in filepaths:
-        print(filepath, end=" - ")
-
-        with open(repo_path / filepath, "rb") as file:
-            raw_bytes = file.read()
-        detected_encoding = chardet.detect(raw_bytes).get("encoding") or "utf-8"
-        print(detected_encoding)
-
-        try:
-            raw_text = raw_bytes.decode(detected_encoding)
-        except UnicodeDecodeError as exc:
-            print(f"ERROR! SKIPPING A FILE! {exc}")
+def _openai_msg_history_to_langchain(message_history: list[dict[str, str]]) -> list[BaseMessage]:
+    """Convert OpenAI's message history format to LangChain's format."""
+    langchain_history = []
+    for message in message_history:
+        if message["role"] == "user":
+            langchain_history.append(HumanMessage(content=message["content"]))
+        elif message["role"] == "assistant":
+            langchain_history.append(AIMessage(content=message["content"]))
+        elif message["role"] == "system":
+            langchain_history.append(SystemMessage(content=message["content"]))
         else:
-            text_snippets = text_splitter.split_text(raw_text)
-            for snippet_idx, text_snippet in enumerate(text_snippets):
-                filepath_posix = filepath.as_posix()
-                source = filepath_posix
-                if source_url_base:
-                    source = f"{source_url_base}/{filepath_posix}"
-                documents.append(
-                    Document(
-                        page_content=text_snippet,
-                        metadata={
-                            "source": source,
-                            "path": filepath_posix,
-                            "snippet_idx": snippet_idx,
-                            "snippets_total": len(text_snippets),
-                        },
-                    )
-                )
+            langchain_history.append(ChatMessage(role=message["role"], content=message["content"]))
 
-    print()
-    print("================================================================================")
-    print()
-
-    # for text in texts:
-    #     print(text)
-    #     print()
-    #     print("================================================================================")
-    #     print()
-    print()
-    print(len(filepaths), "FILES")
-    print(len(documents), "SNIPPETS")
-    print()
-    print("INDEXING...")
-
-    embeddings = FaissBot.build_embeddings()
-    faiss = FAISS.from_documents(documents, embeddings)
-
-    print("DONE")
-    print()
-    return faiss
+    return langchain_history
 
 
-def _list_files_in_repo(repo_path: str | Path) -> list[Path]:
-    repo_path = Path(repo_path)
-
-    # ".*\n" means skip all "hidden" files and directories too
-    gitignore_content = ".*\n" + _read_gitignore(repo_path)
-    spec = pathspec.PathSpec.from_lines("gitwildmatch", gitignore_content.splitlines())
-
-    files_list = []
-    for root, dirs, files in os.walk(repo_path):
-        root = Path(root)
-        # Remove excluded directories from the list to prevent os.walk from processing them
-        dirs[:] = [d for d in dirs if not spec.match_file(root / d)]
-
-        for file in files:
-            file_path = root / file
-            if not spec.match_file(file_path) and _is_text_file(file_path):
-                files_list.append(file_path.relative_to(repo_path))
-
-    return files_list
+_ROLE_MAP = {"human": "HUMAN", "ai": "ASSISTANT"}
 
 
-def _read_gitignore(repo_path: str | Path) -> str:
-    gitignore_path = Path(repo_path) / ".gitignore"
-    if not gitignore_path.is_file():
-        return ""
-
-    with open(gitignore_path, "r", encoding="utf-8") as file:
-        gitignore_content = file.read()
-    return gitignore_content
-
-
-def _is_text_file(file_path: str | Path):
-    file_mime = magic.from_file(file_path, mime=True)
-    # TODO is this an exhaustive list of mime types that we want to index ?
-    return file_mime.startswith("text/") or file_mime.startswith("application/json")
+def _get_chat_history(chat_history: list[BaseMessage]) -> str:
+    parts = []
+    for dialogue_turn in chat_history:
+        role_prefix = _ROLE_MAP.get(dialogue_turn.type, dialogue_turn.type)
+        parts.append(f"{role_prefix.upper()}: {dialogue_turn.content}")
+    return "\n\n".join(parts)
