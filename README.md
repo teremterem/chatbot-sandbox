@@ -1,8 +1,6 @@
 # Chatbot Sandbox
 
-A sandbox for chatbots that can talk to each other.
-
-## Dependencies
+## Additional dependencies
 
 MacOS:
 
